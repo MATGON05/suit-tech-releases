@@ -1,0 +1,506 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="../css/style.css">
+  <title>Configuração de Rede - SUIT-TECH</title>
+  <style>
+    :root {
+      --bg: #1A1A1A;
+      --bg-2: #242424;
+      --surface: #2A2A2A;
+      --surface-2: #333333;
+      --surface-3: #3D3D3D;
+      --border: #3D3D3D;
+      --border-2: #4A4A4A;
+      --primary: #F97316;
+      --primary-hover: #EA580C;
+      --primary-light: rgba(249, 115, 22, 0.13);
+      --primary-glow: rgba(249, 115, 22, 0.3);
+      --text: #E8E8E8;
+      --text-secondary: #B0B0B0;
+      --text-muted: #7A7A7A;
+      --success: #22C55E;
+      --success-bg: rgba(34,197,94,0.15);
+      --warning: #F59E0B;
+      --warning-bg: rgba(245,158,11,0.15);
+      --danger: #EF4444;
+      --danger-bg: rgba(239,68,68,0.15);
+      --purple: #8B5CF6;
+      --purple-bg: rgba(139,92,246,0.15);
+      --gold: #FBBF24;
+      --gold-bg: rgba(251,191,36,0.15);
+      --radius: 12px;
+      --radius-sm: 8px;
+      --shadow: 0 4px 24px rgba(0,0,0,0.5);
+      --transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
+      --sidebar-width: 260px;
+    }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:'Segoe UI',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
+    ::-webkit-scrollbar { width:6px; height:6px; }
+    ::-webkit-scrollbar-track { background:var(--bg); }
+    ::-webkit-scrollbar-thumb { background:var(--primary); border-radius:3px; }
+    ::-webkit-scrollbar-thumb:hover { background:var(--primary-hover); }
+    .app { display:flex; min-height:100vh; }
+    .sidebar { width:var(--sidebar-width); background:var(--surface); border-right:1px solid var(--border); display:flex; flex-direction:column; flex-shrink:0; position:sticky; top:0; height:100vh; overflow-y:auto; z-index:100; backdrop-filter:blur(12px); background:rgba(26,26,26,0.92); }
+    .brand { padding:20px 18px; display:flex; align-items:center; gap:12px; border-bottom:1px solid var(--border); }
+    .brand .logo { width:40px; height:40px; border-radius:var(--radius-sm); display:flex; align-items:center; justify-content:center; overflow:hidden; background:var(--primary-light); }
+    .brand .logo img { width:100%; height:100%; object-fit:contain; }
+    .brand h1 { font-size:18px; font-weight:700; background:linear-gradient(135deg,var(--primary),var(--primary-hover)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+    .brand small { color:var(--text-muted); font-size:11px; display:block; -webkit-text-fill-color:var(--text-muted); }
+    nav { padding:8px 10px; display:flex; flex-direction:column; gap:2px; flex:1; overflow-y:auto; }
+    nav a { padding:8px 14px; border-radius:var(--radius-sm); color:var(--text-secondary); text-decoration:none; transition:var(--transition); font-weight:500; font-size:13px; display:flex; align-items:center; gap:10px; white-space:nowrap; position:relative; }
+    nav a::before { content:''; width:4px; height:4px; border-radius:50%; background:var(--text-muted); transition:var(--transition); flex-shrink:0; }
+    nav a:hover { background:var(--surface-2); color:var(--text); }
+    nav a:hover::before { background:var(--primary); width:6px; height:6px; }
+    nav a.active { background:var(--primary-light); color:var(--primary); box-shadow:inset 3px 0 0 var(--primary); }
+    nav a.active::before { background:var(--primary); width:8px; height:8px; }
+    .sidebar-footer { padding:12px 16px; border-top:1px solid var(--border); color:var(--text-muted); font-size:11px; text-align:center; }
+    .content { flex:1; padding:20px 24px; overflow-y:auto; min-height:100vh; }
+    .topbar { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:12px; position:sticky; top:0; background:var(--bg); z-index:50; padding:8px 0; }
+    .topbar h2 { font-size:clamp(20px,3vw,28px); font-weight:700; background:linear-gradient(135deg,var(--text),var(--text-secondary)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+    .topbar-right { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+    .btn { padding:8px 16px; border:none; border-radius:var(--radius-sm); background:var(--surface-2); color:var(--text); cursor:pointer; font-weight:600; font-size:13px; transition:var(--transition); display:inline-flex; align-items:center; gap:6px; white-space:nowrap; }
+    .btn:hover { background:var(--surface-3); transform:translateY(-1px); }
+    .btn-primary { background:var(--primary); color:#fff; }
+    .btn-primary:hover { background:var(--primary-hover); box-shadow:0 4px 16px var(--primary-glow); }
+    .btn-success { background:var(--success); color:#fff; }
+    .btn-success:hover { background:#16a34a; box-shadow:0 4px 16px rgba(34,197,94,0.3); }
+    .btn-danger { background:var(--danger); color:#fff; }
+    .btn-danger:hover { background:#dc2626; box-shadow:0 4px 16px rgba(239,68,68,0.3); }
+    .btn-warning { background:var(--warning); color:#000; }
+    .btn-warning:hover { background:#d97706; }
+    .btn-purple { background:var(--purple); color:#fff; }
+    .btn-purple:hover { background:#7c3aed; }
+    .btn-testar { background:var(--purple); color:#fff; }
+    .btn-testar:hover { background:#7c3aed; }
+    .btn-sm { padding:4px 10px; font-size:12px; }
+    .panel { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:16px 18px; margin-bottom:16px; transition:var(--transition); overflow:hidden; }
+    .panel:hover { border-color:var(--surface-3); }
+    .panel h3 { font-size:15px; font-weight:600; margin-bottom:14px; color:var(--text-secondary); letter-spacing:0.3px; }
+    .toast { position:fixed; bottom:24px; right:24px; padding:14px 20px; border-radius:var(--radius-sm); color:#fff; font-weight:600; z-index:9999; opacity:0; transform:translateY(20px) scale(0.95); transition:all 0.3s cubic-bezier(0.4,0,0.2,1); box-shadow:0 8px 32px rgba(0,0,0,0.5); max-width:420px; font-size:14px; pointer-events:none; }
+    .toast.show { opacity:1; transform:translateY(0) scale(1); }
+    .toast-success { background:linear-gradient(135deg,#22c55e,#16a34a); }
+    .toast-error { background:linear-gradient(135deg,#ef4444,#dc2626); }
+    .toast-warning { background:linear-gradient(135deg,#f59e0b,#d97706); color:#000; }
+    .form-group { display:flex; flex-direction:column; gap:4px; margin-bottom:12px; }
+    .form-group label { font-size:13px; color:var(--text-muted); font-weight:500; }
+    .form-group input, .form-group select { background:var(--bg); border:1px solid var(--border); color:var(--text); padding:8px 12px; border-radius:var(--radius-sm); font-family:inherit; transition:var(--transition); font-size:14px; width:100%; }
+    .form-group input:focus, .form-group select:focus { outline:none; border-color:var(--primary); }
+    .form-group .help { color:var(--text-muted); font-size:12px; margin-top:4px; display:block; }
+    .btn-group { display:flex; gap:10px; flex-wrap:wrap; margin-top:12px; }
+    .btn-group .btn { flex:1; min-width:120px; justify-content:center; padding:10px 16px; }
+    .status-msg { padding:12px 16px; border-radius:var(--radius-sm); margin-top:12px; display:none; animation:fadeIn 0.3s ease; }
+    .status-msg.show { display:block; }
+    .status-msg.success { background:var(--success-bg); border:1px solid var(--success); color:var(--success); }
+    .status-msg.error { background:var(--danger-bg); border:1px solid var(--danger); color:var(--danger); }
+    .status-msg.warning { background:var(--warning-bg); border:1px solid var(--warning); color:var(--warning); }
+    .status-msg.info { background:var(--primary-light); border:1px solid var(--primary); color:var(--primary); }
+    .status-msg .icon { font-size:20px; margin-right:8px; }
+    .status-msg .details { font-size:13px; opacity:0.8; margin-top:4px; word-break:break-all; }
+    .info-box { padding:12px 16px; background:var(--surface-2); border-radius:var(--radius-sm); margin-top:12px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; font-size:13px; border-left:3px solid var(--primary); }
+    .info-box .label { color:var(--text-muted); }
+    .info-box .valor { color:var(--text); font-weight:600; word-break:break-all; font-family:monospace; }
+    .info-box .valor.rede { color:var(--success); }
+    .info-box .valor.local { color:var(--warning); }
+    .connection-status { display:flex; align-items:center; gap:8px; padding:6px 12px; border-radius:var(--radius-sm); font-size:12px; }
+    .connection-status .dot { width:8px; height:8px; border-radius:50%; display:inline-block; }
+    .connection-status .dot.online { background:var(--success); }
+    .connection-status .dot.offline { background:var(--danger); }
+    .connection-status .dot.unknown { background:var(--warning); }
+    .exemplos { margin-top:12px; padding:12px 16px; background:var(--surface-2); border-radius:var(--radius-sm); font-size:13px; color:var(--text-muted); border:1px dashed var(--border); }
+    .exemplos code { background:var(--bg); padding:2px 8px; border-radius:4px; color:var(--text-secondary); font-size:12px; font-family:monospace; display:inline-block; margin:2px 0; }
+    .exemplos .exemplo-item { margin:4px 0; display:flex; align-items:center; gap:8px; }
+    .exemplos .exemplo-item .tag { font-size:10px; padding:1px 8px; border-radius:10px; background:var(--surface-3); color:var(--text-muted); }
+    .step-indicator { display:flex; gap:8px; margin-top:12px; padding:12px 16px; background:var(--surface-2); border-radius:var(--radius-sm); align-items:center; flex-wrap:wrap; }
+    .step-indicator .step { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--text-muted); }
+    .step-indicator .step .num { width:20px; height:20px; border-radius:50%; background:var(--surface-3); display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700; color:var(--text-secondary); }
+    .step-indicator .step .num.active { background:var(--primary); color:#fff; }
+    .step-indicator .step .num.done { background:var(--success); color:#fff; }
+    .step-indicator .arrow { color:var(--text-muted); font-size:12px; }
+    .badge { font-size:10px; padding:2px 10px; border-radius:12px; background:var(--surface-3); color:var(--text-muted); font-weight:400; }
+    @media (max-width:768px) {
+      .sidebar { position:fixed; left:-320px; top:0; height:100vh; width:var(--sidebar-width); z-index:100; transition:left 0.3s; }
+      .sidebar.open { left:0; }
+      .content { padding:12px 14px; }
+      .topbar h2 { font-size:18px; }
+      .btn-group .btn { flex:1 1 100%; }
+      .step-indicator { flex-direction:column; align-items:flex-start; }
+      .step-indicator .arrow { display:none; }
+      .info-box { flex-direction:column; align-items:flex-start; }
+      .btn { padding:6px 12px; font-size:12px; }
+      .btn-sm { padding:3px 8px; font-size:10px; }
+    }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(-8px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+    .testando { animation:pulse 0.8s ease infinite; }
+  </style>
+  <script>
+    (function() {
+      const sessao = localStorage.getItem('sessao_suittech');
+      if (!sessao) { window.location.href = 'login.html'; return; }
+      try {
+        const dados = JSON.parse(sessao);
+        if (!dados.logado) { window.location.href = 'login.html'; return; }
+      } catch (e) { window.location.href = 'login.html'; }
+    })();
+  </script>
+  <link rel="stylesheet" href="../css/tema-novo-overrides.css">
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <span class="logo"><img src="../assets/logo.png" alt="SUIT-TECH"></span>
+        <div>
+          <h1>SUIT-TECH</h1>
+          <small>Assistência Técnica</small>
+        </div>
+      </div>
+      <div id="menu-container"></div>
+      <footer class="sidebar-footer">
+        <span>Rodando local</span>
+        <br>
+        <button onclick="fazerLogout()" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:12px;margin-top:8px;">🚪 Sair</button>
+      </footer>
+    </aside>
+
+    <main class="content">
+      <header class="topbar">
+        <div class="topbar-left"><h2>🌐 Configuração de Rede</h2></div>
+        <div class="topbar-right">
+          <button class="btn btn-primary" onclick="window.location.href='index.html'">📊 Dashboard</button>
+        </div>
+      </header>
+
+      <div class="panel">
+        <h3>📋 Passo a Passo <span class="badge">Como configurar</span></h3>
+        <div class="step-indicator">
+          <div class="step"><span class="num active">1</span><span>Compartilhar pasta</span></div>
+          <span class="arrow">→</span>
+          <div class="step"><span class="num">2</span><span>Digitar caminho</span></div>
+          <span class="arrow">→</span>
+          <div class="step"><span class="num">3</span><span>Testar conexão</span></div>
+          <span class="arrow">→</span>
+          <div class="step"><span class="num">4</span><span>Salvar</span></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>📊 Status Atual <span class="badge">Configuração atual</span></h3>
+        <div class="info-box">
+          <span class="label">📁 Modo:</span>
+          <span class="valor" id="modo-atual">Carregando...</span>
+        </div>
+        <div class="info-box" style="margin-top:8px; border-left-color:var(--text-muted);">
+          <span class="label">📍 Caminho:</span>
+          <span class="valor" id="caminho-atual" style="font-size:12px;">Carregando...</span>
+        </div>
+        <div class="info-box" style="margin-top:8px; border-left-color:var(--text-muted);">
+          <span class="label">🔗 Status da conexão:</span>
+          <span id="status-conexao" class="connection-status">
+            <span class="dot unknown"></span>
+            <span>Verificando...</span>
+          </span>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>⚙️ Configurar Rede <span class="badge">Digite o caminho</span></h3>
+        <div class="form-group">
+          <label for="caminho-rede">📁 Caminho da pasta de dados em rede</label>
+          <input type="text" id="caminho-rede" placeholder="Ex: \\\\SERVIDOR\\SUIT-TECH\\DADOS" spellcheck="false">
+          <span class="help">Digite o caminho completo da pasta compartilhada onde estão os dados</span>
+        </div>
+        <div class="btn-group">
+          <button class="btn btn-testar" id="btn-testar" onclick="testarConexao()">🔍 Testar Conexão</button>
+          <button class="btn btn-success" id="btn-salvar" onclick="salvarConfigRede()">💾 Salvar e Usar Rede</button>
+          <button class="btn btn-warning" id="btn-local" onclick="usarLocal()">📁 Usar Dados Locais</button>
+        </div>
+        <div id="status-msg" class="status-msg">
+          <span class="icon"></span>
+          <span class="text"></span>
+          <div class="details"></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>📌 Exemplos de Caminhos <span class="badge">Ajuda</span></h3>
+        <div class="exemplos">
+          <div class="exemplo-item"><span class="tag">Nome do PC</span><code>\\SERVIDOR\SUIT-TECH\DADOS</code></div>
+          <div class="exemplo-item"><span class="tag">IP</span><code>\\192.168.1.100\SUIT-TECH\DADOS</code></div>
+          <div class="exemplo-item"><span class="tag">Unidade mapeada</span><code>Z:\DADOS</code></div>
+          <div class="exemplo-item" style="margin-top:8px; border-top:1px solid var(--border); padding-top:8px;">
+            <span style="color:var(--text-muted);">💡 <strong>Dica:</strong> Use <code>\\</code> (duas barras) no início para caminhos de rede</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>💡 Dicas <span class="badge">Importante</span></h3>
+        <div style="color:var(--text-secondary);font-size:14px;line-height:1.8;">
+          <p>✅ <strong>Compartilhe a pasta</strong> onde o programa está instalado</p>
+          <p>✅ Dentro dela, crie uma pasta chamada <code>DADOS</code></p>
+          <p>✅ <strong>Teste a conexão</strong> antes de salvar</p>
+          <p>✅ Se a rede cair, o programa volta automaticamente para o modo local</p>
+          <p>⚠️ A configuração é salva no arquivo <code>config.json</code> na pasta do programa</p>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="../js/api.js"></script>
+  <script src="../js/app.js"></script>
+  <script>
+    // ============================================
+    // TOAST
+    // ============================================
+    function showToast(mensagem, tipo = 'success') {
+      const toast = document.getElementById('toast');
+      if (!toast) return;
+      toast.textContent = mensagem;
+      toast.className = 'toast toast-' + tipo;
+      setTimeout(() => toast.classList.add('show'), 100);
+      setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+    function fazerLogout() {
+      if (confirm('Deseja realmente sair?')) {
+        localStorage.removeItem('sessao_suittech');
+        window.location.href = 'login.html';
+      }
+    }
+
+    // ============================================
+    // VARIÁVEIS
+    // ============================================
+    let configAtual = { caminhoRede: '', modo: 'local' };
+    let testando = false;
+
+    // ============================================
+    // CARREGAR CONFIGURAÇÃO
+    // ============================================
+    async function carregarConfig() {
+      try {
+        if (typeof window.electron === 'undefined' || !window.electron.configLer) {
+          console.warn('API de configuração não disponível');
+          atualizarStatusLocal();
+          return;
+        }
+        const resultado = await window.electron.configLer();
+        if (resultado.sucesso) {
+          configAtual = resultado.dados || { caminhoRede: '', modo: 'local' };
+          atualizarStatus();
+          verificarConexao();
+        } else {
+          configAtual = { caminhoRede: '', modo: 'local' };
+          atualizarStatus();
+        }
+      } catch (erro) {
+        console.error('Erro ao carregar config:', erro);
+        configAtual = { caminhoRede: '', modo: 'local' };
+        atualizarStatus();
+      }
+    }
+
+    // ============================================
+    // ATUALIZAR STATUS
+    // ============================================
+    function atualizarStatus() {
+      const modoEl = document.getElementById('modo-atual');
+      const caminhoEl = document.getElementById('caminho-atual');
+      const inputEl = document.getElementById('caminho-rede');
+      if (configAtual.modo === 'rede' && configAtual.caminhoRede) {
+        modoEl.textContent = '🌐 Rede';
+        modoEl.className = 'valor rede';
+        caminhoEl.textContent = configAtual.caminhoRede;
+        inputEl.value = configAtual.caminhoRede;
+      } else {
+        modoEl.textContent = '📁 Local';
+        modoEl.className = 'valor local';
+        caminhoEl.textContent = 'Usando dados na pasta do programa';
+        inputEl.value = '';
+      }
+    }
+
+    function atualizarStatusLocal() {
+      const modoEl = document.getElementById('modo-atual');
+      const caminhoEl = document.getElementById('caminho-atual');
+      modoEl.textContent = '📁 Local (API indisponível)';
+      modoEl.className = 'valor local';
+      caminhoEl.textContent = 'Não foi possível carregar configuração';
+    }
+
+    // ============================================
+    // VERIFICAR CONEXÃO
+    // ============================================
+    async function verificarConexao() {
+      const statusEl = document.getElementById('status-conexao');
+      if (configAtual.modo !== 'rede' || !configAtual.caminhoRede) {
+        statusEl.innerHTML = `<span class="dot unknown"></span><span>Modo local ativo</span>`;
+        return;
+      }
+      try {
+        const resultado = await window.electron.configTestar(configAtual.caminhoRede);
+        if (resultado.sucesso) {
+          statusEl.innerHTML = `<span class="dot online"></span><span style="color:var(--success);">✅ Conectado</span>`;
+        } else {
+          statusEl.innerHTML = `<span class="dot offline"></span><span style="color:var(--danger);">❌ Desconectado</span>`;
+        }
+      } catch (erro) {
+        statusEl.innerHTML = `<span class="dot offline"></span><span style="color:var(--danger);">❌ Erro ao verificar</span>`;
+      }
+    }
+
+    // ============================================
+    // TESTAR CONEXÃO
+    // ============================================
+    async function testarConexao() {
+      if (testando) return;
+      const caminho = document.getElementById('caminho-rede').value.trim();
+      const statusEl = document.getElementById('status-msg');
+      const btn = document.getElementById('btn-testar');
+      if (!caminho) {
+        mostrarStatus('error', '⚠️', 'Digite um caminho!', 'O campo está vazio.');
+        return;
+      }
+      testando = true;
+      btn.disabled = true;
+      btn.textContent = '⏳ Testando...';
+      mostrarStatus('info', '⏳', 'Testando conexão...', 'Verificando se o caminho é acessível...');
+      try {
+        const resultado = await window.electron.configTestar(caminho);
+        if (resultado.sucesso) {
+          mostrarStatus('success', '✅', 'Conexão estabelecida!', 'O caminho é acessível e você pode salvar a configuração.');
+          document.getElementById('status-conexao').innerHTML = `<span class="dot online"></span><span style="color:var(--success);">✅ Conectado</span>`;
+        } else {
+          mostrarStatus('error', '❌', 'Falha na conexão!', 'Erro: ' + (resultado.erro || 'Caminho não encontrado ou sem permissão.'));
+        }
+      } catch (erro) {
+        mostrarStatus('error', '❌', 'Erro ao testar', 'Erro: ' + erro.message);
+      } finally {
+        testando = false;
+        btn.disabled = false;
+        btn.textContent = '🔍 Testar Conexão';
+      }
+    }
+
+    // ============================================
+    // SALVAR CONFIGURAÇÃO DE REDE
+    // ============================================
+    async function salvarConfigRede() {
+      const caminho = document.getElementById('caminho-rede').value.trim();
+      const statusEl = document.getElementById('status-msg');
+      const btn = document.getElementById('btn-salvar');
+      if (!caminho) {
+        mostrarStatus('error', '⚠️', 'Digite o caminho!', 'O campo está vazio.');
+        return;
+      }
+      btn.disabled = true;
+      btn.textContent = '⏳ Salvando...';
+      try {
+        const teste = await window.electron.configTestar(caminho);
+        if (!teste.sucesso) {
+          mostrarStatus('error', '❌', 'Caminho inválido!', 'Não foi possível acessar: ' + (teste.erro || 'Erro desconhecido.'));
+          btn.disabled = false;
+          btn.textContent = '💾 Salvar e Usar Rede';
+          return;
+        }
+      } catch (erro) {
+        mostrarStatus('error', '❌', 'Erro ao testar', erro.message);
+        btn.disabled = false;
+        btn.textContent = '💾 Salvar e Usar Rede';
+        return;
+      }
+      const config = { caminhoRede: caminho, modo: 'rede' };
+      try {
+        const resultado = await window.electron.configSalvar(config);
+        if (resultado.sucesso) {
+          configAtual = config;
+          atualizarStatus();
+          mostrarStatus('success', '✅', 'Configuração salva com sucesso!', 'O programa vai usar os dados em rede a partir da próxima reinicialização.\n\n📁 Caminho: ' + caminho);
+          showToast('✅ Configuração de rede salva! Reinicie o programa.', 'success');
+          document.getElementById('status-conexao').innerHTML = `<span class="dot online"></span><span style="color:var(--success);">✅ Conectado</span>`;
+        } else {
+          mostrarStatus('error', '❌', 'Erro ao salvar', 'Não foi possível salvar a configuração. Verifique as permissões.');
+        }
+      } catch (erro) {
+        mostrarStatus('error', '❌', 'Erro ao salvar', erro.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '💾 Salvar e Usar Rede';
+      }
+    }
+
+    // ============================================
+    // USAR DADOS LOCAIS
+    // ============================================
+    async function usarLocal() {
+      const btn = document.getElementById('btn-local');
+      if (!confirm('📁 Deseja usar os dados locais?\n\nIsso vai ignorar a configuração de rede e usar a pasta local do programa.')) return;
+      btn.disabled = true;
+      btn.textContent = '⏳...';
+      const config = { caminhoRede: '', modo: 'local' };
+      try {
+        const resultado = await window.electron.configSalvar(config);
+        if (resultado.sucesso) {
+          configAtual = config;
+          atualizarStatus();
+          document.getElementById('caminho-rede').value = '';
+          mostrarStatus('warning', '📁', 'Modo local ativado', 'O programa vai usar a pasta local a partir da próxima reinicialização.');
+          showToast('📁 Modo local ativado!', 'warning');
+          document.getElementById('status-conexao').innerHTML = `<span class="dot unknown"></span><span>Modo local ativo</span>`;
+        } else {
+          showToast('❌ Erro ao salvar configuração', 'error');
+        }
+      } catch (erro) {
+        showToast('❌ Erro ao salvar: ' + erro.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '📁 Usar Dados Locais';
+      }
+    }
+
+    // ============================================
+    // MOSTRAR STATUS
+    // ============================================
+    function mostrarStatus(tipo, icon, titulo, detalhe) {
+      const statusEl = document.getElementById('status-msg');
+      statusEl.className = 'status-msg show ' + tipo;
+      statusEl.querySelector('.icon').textContent = icon;
+      statusEl.querySelector('.text').textContent = titulo;
+      statusEl.querySelector('.details').textContent = detalhe || '';
+      statusEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    // ============================================
+    // INICIALIZAÇÃO
+    // ============================================
+    document.addEventListener('DOMContentLoaded', function() {
+      carregarConfig();
+      document.getElementById('caminho-rede').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          testarConexao();
+        }
+      });
+    });
+
+    // ============================================
+    // EXPOSIÇÃO GLOBAL
+    // ============================================
+    window.testarConexao = testarConexao;
+    window.salvarConfigRede = salvarConfigRede;
+    window.usarLocal = usarLocal;
+    window.carregarConfig = carregarConfig;
+    window.showToast = showToast;
+    window.fazerLogout = fazerLogout;
+  </script>
+
+  <script src="../js/carregarMenu.js"></script>
+  <script src="../js/glitter.js"></script>
+</body>
+</html>

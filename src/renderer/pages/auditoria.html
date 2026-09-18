@@ -1,0 +1,137 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Auditoria - SUIT-TECH</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <script>
+    (function() {
+      const sessao = localStorage.getItem('sessao_suittech');
+      if (!sessao) { window.location.href = 'login.html'; return; }
+      try {
+        const dados = JSON.parse(sessao);
+        if (!dados.logado) { window.location.href = 'login.html'; return; }
+      } catch (e) { window.location.href = 'login.html'; }
+    })();
+  </script>
+  <link rel="stylesheet" href="../css/tema-novo-overrides.css">
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <span class="logo"><img src="../assets/logo.png" alt="SUIT-TECH"></span>
+        <div><h1>SUIT-TECH</h1><small>Assistência Técnica</small></div>
+      </div>
+      <div id="menu-container"></div>
+      <footer class="sidebar-footer">
+        <span>Rodando local</span><br>
+        <button onclick="fazerLogout()" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:12px;margin-top:8px;">🚪 Sair</button>
+      </footer>
+    </aside>
+
+    <main class="content">
+      <header class="topbar">
+        <h2>📋 Auditoria de Movimentações</h2>
+        <button class="btn btn-danger" onclick="limparAuditoria()">🗑️ Limpar Logs</button>
+      </header>
+
+      <section class="panel">
+        <div class="toolbar">
+          <input type="text" id="search-auditoria" placeholder="🔍 Buscar..." oninput="renderAuditoria()">
+          <select id="filter-auditoria-acao" onchange="renderAuditoria()">
+            <option value="">Todas as ações</option>
+            <option value="salvar">Salvar</option>
+            <option value="atualizar">Atualizar</option>
+            <option value="excluir">Excluir</option>
+            <option value="transferencia">Transferência</option>
+            <option value="backup">Backup</option>
+          </select>
+          <span style="color:var(--text-muted);font-size:13px;" id="auditoria-count">0 logs</span>
+        </div>
+        <div class="table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr><th>Data/Hora</th><th>Usuário</th><th>Ação</th><th>Registro</th><th>Motivo</th></tr>
+            </thead>
+            <tbody id="auditoria-table">
+              <tr><td colspan="5" class="empty">Carregando...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="../js/api.js"></script>
+  <script src="../js/app.js"></script>
+  <script src="../js/utils.js"></script>
+  <script>
+    let auditoriaCache = [];
+
+    async function loadAuditoria() {
+      try {
+        const result = await window.api.buscar('audit_logs');
+        auditoriaCache = result.sucesso ? result.dados : [];
+        renderAuditoria();
+      } catch (e) {
+        console.error(e);
+        auditoriaCache = [];
+        renderAuditoria();
+      }
+    }
+
+    function renderAuditoria() {
+      const q = document.getElementById('search-auditoria')?.value.toLowerCase() || '';
+      const acao = document.getElementById('filter-auditoria-acao')?.value || '';
+      const tbody = document.getElementById('auditoria-table');
+      const countEl = document.getElementById('auditoria-count');
+      if (!tbody) return;
+
+      let filtered = auditoriaCache.filter(l => (l.registro || '').toLowerCase().includes(q) || (l.usuario || '').toLowerCase().includes(q));
+      if (acao) filtered = filtered.filter(l => l.acao === acao);
+
+      if (countEl) countEl.textContent = `${filtered.length} logs`;
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="empty">Nenhum log encontrado</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = filtered.map(l => `
+        <tr>
+          <td>${l.data ? new Date(l.data).toLocaleString('pt-BR') : '-'}</td>
+          <td>${l.usuario || '-'}</td>
+          <td><span class="status-badge status-${l.acao === 'excluir' ? 'cancelado' : l.acao === 'transferencia' ? 'aprovado' : 'concluido'}">${l.acao || '-'}</span></td>
+          <td>${l.registro || '-'}</td>
+          <td>${l.motivo || '-'}</td>
+        </tr>
+      `).join('');
+    }
+
+    async function limparAuditoria() {
+      if (!confirm('⚠️ Tem certeza que deseja limpar todos os logs de auditoria?')) return;
+      const result = await window.api.deletar('audit_logs', 'all');
+      if (result.sucesso) {
+        showToast('🗑️ Logs limpos!', 'warning');
+        await loadAuditoria();
+      } else {
+        showToast('❌ Erro: ' + result.erro, 'error');
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', loadAuditoria);
+
+    window.loadAuditoria = loadAuditoria;
+    window.renderAuditoria = renderAuditoria;
+    window.limparAuditoria = limparAuditoria;
+  </script>
+
+  <script src="../js/carregarMenu.js"></script>
+
+  <script src="../js/glitter.js"></script>
+</body>
+</html>

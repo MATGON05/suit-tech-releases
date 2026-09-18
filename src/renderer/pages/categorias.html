@@ -1,0 +1,232 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Categorias - SUIT-TECH</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <script>
+    (function() {
+      const sessao = localStorage.getItem('sessao_suittech');
+      if (!sessao) { window.location.href = 'login.html'; return; }
+      try {
+        const dados = JSON.parse(sessao);
+        if (!dados.logado) { window.location.href = 'login.html'; return; }
+      } catch (e) { window.location.href = 'login.html'; }
+    })();
+  </script>
+  <link rel="stylesheet" href="../css/tema-novo-overrides.css">
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <span class="logo"><img src="../assets/logo.png" alt="SUIT-TECH"></span>
+        <div><h1>SUIT-TECH</h1><small>Assistência Técnica</small></div>
+      </div>
+      <div id="menu-container"></div>
+      <footer class="sidebar-footer">
+        <span>Rodando local</span><br>
+        <button onclick="fazerLogout()" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:12px;margin-top:8px;">🚪 Sair</button>
+      </footer>
+    </aside>
+
+    <main class="content">
+      <header class="topbar">
+        <h2>📂 Gerenciar Categorias</h2>
+        <button class="btn btn-primary" onclick="openCategoriaModal()">+ Nova Categoria</button>
+      </header>
+
+      <section class="panel">
+        <div class="toolbar">
+          <input type="text" id="search-categoria" placeholder="🔍 Buscar categoria..." oninput="renderCategorias()">
+          <select id="filter-categoria-tipo" onchange="renderCategorias()">
+            <option value="">Todos</option>
+            <option value="empresarial">Empresarial</option>
+            <option value="pessoal">Pessoal</option>
+          </select>
+          <span style="color:var(--text-muted);font-size:13px;" id="categoria-count">0 categorias</span>
+        </div>
+        <div class="table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr><th>Nome</th><th>Tipo</th><th>Cor</th><th>Status</th><th class="actions">Ações</th></tr>
+            </thead>
+            <tbody id="categorias-table">
+              <tr><td colspan="5" class="empty">Carregando...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="categoria-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="categoria-modal-title">Nova Categoria</h3>
+        <button class="close" onclick="closeCategoriaModal()">&times;</button>
+      </div>
+      <form id="categoria-form" onsubmit="saveCategoria(event)">
+        <input type="hidden" id="categoria-id">
+        <div class="form-grid">
+          <div class="form-group span-2">
+            <label>Nome *</label>
+            <input type="text" id="categoria-nome" required placeholder="Ex: Aluguel, Peças, Moradia">
+          </div>
+          <div class="form-group">
+            <label>Tipo</label>
+            <select id="categoria-tipo">
+              <option value="empresarial">Empresarial</option>
+              <option value="pessoal">Pessoal</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Cor</label>
+            <input type="color" id="categoria-cor" value="#3b82f6">
+          </div>
+          <div class="form-group span-2">
+            <label><input type="checkbox" id="categoria-ativo" checked> Ativo</label>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn" onclick="closeCategoriaModal()">Cancelar</button>
+          <button type="submit" class="btn btn-primary">💾 Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="../js/api.js"></script>
+  <script src="../js/app.js"></script>
+  <script src="../js/utils.js"></script>
+  <script>
+    let categoriasCache = [];
+
+    async function loadCategorias() {
+      try {
+        const result = await window.api.categoriasBuscar();
+        categoriasCache = result.sucesso ? result.dados : [];
+        renderCategorias();
+      } catch (e) {
+        console.error(e);
+        categoriasCache = [];
+        renderCategorias();
+      }
+    }
+
+    function renderCategorias() {
+      const q = document.getElementById('search-categoria')?.value.toLowerCase() || '';
+      const tipo = document.getElementById('filter-categoria-tipo')?.value || '';
+      const tbody = document.getElementById('categorias-table');
+      const countEl = document.getElementById('categoria-count');
+      if (!tbody) return;
+
+      let filtered = categoriasCache.filter(c => (c.nome || '').toLowerCase().includes(q));
+      if (tipo) filtered = filtered.filter(c => c.tipo === tipo);
+
+      if (countEl) countEl.textContent = `${filtered.length} categorias`;
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="empty">Nenhuma categoria</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = filtered.map(c => `
+        <tr>
+          <td><span style="display:inline-block;width:16px;height:16px;border-radius:4px;background:${c.cor || '#6b7280'};margin-right:8px;"></span>${c.nome || '-'}</td>
+          <td>${c.tipo === 'empresarial' ? '🏢 Empresarial' : '👤 Pessoal'}</td>
+          <td><span style="background:${c.cor || '#6b7280'};padding:2px 12px;border-radius:4px;color:#fff;">${c.cor || '#6b7280'}</span></td>
+          <td><span class="status-badge ${c.ativo ? 'status-concluido' : 'status-cancelado'}">${c.ativo ? '✅ Ativo' : '❌ Inativo'}</span></td>
+          <td class="actions">
+            <button class="btn btn-primary" onclick="editCategoria('${c._id}')" style="padding:4px 12px;font-size:12px;">✏️</button>
+            <button class="btn btn-danger" onclick="deleteCategoria('${c._id}')" style="padding:4px 12px;font-size:12px;">🗑️</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function openCategoriaModal(categoria = null) {
+      document.getElementById('categoria-modal-title').textContent = categoria ? '✏️ Editar Categoria' : '➕ Nova Categoria';
+      document.getElementById('categoria-id').value = categoria ? categoria._id : '';
+      document.getElementById('categoria-nome').value = categoria ? categoria.nome : '';
+      document.getElementById('categoria-tipo').value = categoria ? categoria.tipo || 'empresarial' : 'empresarial';
+      document.getElementById('categoria-cor').value = categoria ? categoria.cor || '#3b82f6' : '#3b82f6';
+      document.getElementById('categoria-ativo').checked = categoria ? categoria.ativo !== false : true;
+      document.getElementById('categoria-modal').classList.add('open');
+    }
+
+    function closeCategoriaModal() {
+      document.getElementById('categoria-modal').classList.remove('open');
+    }
+
+    async function saveCategoria(e) {
+      e.preventDefault();
+      const id = document.getElementById('categoria-id').value;
+      const body = {
+        nome: document.getElementById('categoria-nome').value.trim(),
+        tipo: document.getElementById('categoria-tipo').value,
+        cor: document.getElementById('categoria-cor').value,
+        ativo: document.getElementById('categoria-ativo').checked
+      };
+      if (!body.nome) { showToast('❌ Nome é obrigatório!', 'error'); return; }
+
+      try {
+        let result;
+        if (id) {
+          result = await window.api.categoriasAtualizar(id, body);
+        } else {
+          result = await window.api.categoriasSalvar(body);
+        }
+        if (result.sucesso) {
+          closeCategoriaModal();
+          showToast('✅ Categoria salva!', 'success');
+          await loadCategorias();
+        } else {
+          showToast('❌ Erro: ' + result.erro, 'error');
+        }
+      } catch (e) {
+        console.error(e);
+        showToast('❌ Erro: ' + e.message, 'error');
+      }
+    }
+
+    async function editCategoria(id) {
+      const cat = categoriasCache.find(c => c._id === id);
+      if (cat) openCategoriaModal(cat);
+      else showToast('❌ Categoria não encontrada', 'error');
+    }
+
+    async function deleteCategoria(id) {
+      if (!confirm('Excluir esta categoria?')) return;
+      const result = await window.api.categoriasDeletar(id);
+      if (result.sucesso) {
+        showToast('✅ Categoria excluída!', 'success');
+        await loadCategorias();
+      } else {
+        showToast('❌ Erro: ' + result.erro, 'error');
+      }
+    }
+
+    document.addEventListener('click', function(e) {
+      if (e.target.classList.contains('modal')) e.target.classList.remove('open');
+    });
+
+    document.addEventListener('DOMContentLoaded', loadCategorias);
+
+    window.loadCategorias = loadCategorias;
+    window.renderCategorias = renderCategorias;
+    window.openCategoriaModal = openCategoriaModal;
+    window.closeCategoriaModal = closeCategoriaModal;
+    window.saveCategoria = saveCategoria;
+    window.editCategoria = editCategoria;
+    window.deleteCategoria = deleteCategoria;
+  </script>
+
+  <script src="../js/carregarMenu.js"></script>
+
+  <script src="../js/glitter.js"></script>
+</body>
+</html>

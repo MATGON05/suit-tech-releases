@@ -1,0 +1,322 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fechamento de Caixa - SUIT-TECH</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <script>
+    (function() {
+      const sessao = localStorage.getItem('sessao_suittech');
+      if (!sessao) { window.location.href = 'login.html'; return; }
+      try {
+        const dados = JSON.parse(sessao);
+        if (!dados.logado) { window.location.href = 'login.html'; return; }
+      } catch (e) { window.location.href = 'login.html'; }
+    })();
+  </script>
+  <style>
+    .fechamento-container { max-width: 600px; margin: 0 auto; padding: 30px; }
+    .fechamento-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 30px; text-align: center; }
+    .fechamento-card h2 { color: var(--gold); margin-bottom: 20px; }
+    .fechamento-card .saldo { font-size: 32px; font-weight: 700; color: var(--gold); }
+    .fechamento-card input { font-size: 20px; padding: 12px; width: 200px; text-align: center; background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: var(--radius-sm); margin: 12px 0; }
+    .fechamento-card .diff { margin-top: 16px; font-weight: 600; }
+    .fechamento-card .diff.ok { color: var(--success); }
+    .fechamento-card .diff.erro { color: var(--danger); }
+    .reserva-info { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
+    .reserva-info .valor { font-size: 24px; font-weight: 700; color: var(--gold); }
+  </style>
+  <link rel="stylesheet" href="../css/tema-novo-overrides.css">
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <span class="logo"><img src="../assets/logo.png" alt="SUIT-TECH"></span>
+        <div><h1>SUIT-TECH</h1><small>Assistência Técnica</small></div>
+      </div>
+      <div id="menu-container"></div>
+      <footer class="sidebar-footer">
+        <span>Rodando local</span><br>
+        <button onclick="fazerLogout()" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:12px;margin-top:8px;">🚪 Sair</button>
+      </footer>
+    </aside>
+
+    <main class="content">
+      <div class="fechamento-container">
+        <div class="fechamento-card">
+          <h2>🔒 Fechamento de Caixa</h2>
+          <p style="color:var(--text-secondary);">Saldo esperado acumulado até a data do fechamento</p>
+          <div style="display:flex;gap:8px;justify-content:center;align-items:center;flex-wrap:wrap;margin:12px 0;">
+            <select id="fechamento-periodo" onchange="ajustarDataFechamento()" aria-label="Período do fechamento">
+              <option value="diario">Fechamento diário</option>
+              <option value="mensal">Fechamento mensal</option>
+            </select>
+            <input type="date" id="fechamento-data" onchange="carregarSaldoEsperado()" aria-label="Data do fechamento">
+          </div>
+          <div class="saldo" id="saldo-esperado">R$ 0,00</div>
+          <p style="color:var(--text-secondary);margin-top:20px;">Informe o valor em dinheiro no caixa físico:</p>
+          <input type="number" step="0.01" id="saldo-informado" placeholder="0,00">
+          <br>
+          <button class="btn btn-primary" onclick="confirmarFechamento()" style="font-size:18px;padding:12px 40px;">✅ Fechar Caixa</button>
+          <div id="diferenca" class="diff"></div>
+
+          <!-- ÁREA DA RESERVA -->
+          <div class="reserva-info">
+            <h4 style="color:var(--text-secondary);">💰 Reserva atual</h4>
+            <div class="valor" id="reserva-valor-fechamento">R$ 0,00</div>
+            <button class="btn btn-success" onclick="transferirLucroParaReserva()" style="margin-top:12px;font-size:16px;padding:10px 30px;">
+              💰 Transferir Lucro do Mês para Reserva
+            </button>
+            <div id="reserva-msg" style="margin-top:8px;font-size:13px;color:var(--text-muted);"></div>
+          </div>
+
+          <div id="historico-fechamentos" style="margin-top:20px;text-align:left;border-top:1px solid var(--border);padding-top:16px;">
+            <h4 style="color:var(--text-secondary);">📋 Últimos fechamentos</h4>
+            <div id="lista-fechamentos" style="font-size:13px;color:var(--text-muted);"></div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="../js/api.js"></script>
+  <script src="../js/app.js"></script>
+  <script src="../js/utils.js"></script>
+  <script>
+    // ============================================
+    // TOAST
+    // ============================================
+    function showToast(mensagem, tipo = 'success') {
+      const toast = document.getElementById('toast');
+      if (!toast) return;
+      toast.textContent = mensagem;
+      toast.className = 'toast toast-' + tipo;
+      setTimeout(() => toast.classList.add('show'), 100);
+      setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+
+    function fazerLogout() {
+      if (confirm('Deseja realmente sair?')) {
+        localStorage.removeItem('sessao_suittech');
+        window.location.href = 'login.html';
+      }
+    }
+
+    // ============================================
+    // GERENCIAMENTO DA RESERVA (cópia do index)
+    // ============================================
+    const RESERVA_KEY = 'reserva_suittech';
+    const RESERVA_HISTORICO_KEY = 'reserva_historico';
+    const RESERVA_ULTIMO_MES_KEY = 'reserva_ultimo_mes';
+
+    function getReserva() {
+      return parseFloat(localStorage.getItem(RESERVA_KEY)) || 0;
+    }
+
+    function setReserva(valor) {
+      localStorage.setItem(RESERVA_KEY, String(valor));
+      atualizarReservaFechamento();
+    }
+
+    function getHistoricoReserva() {
+      try {
+        return JSON.parse(localStorage.getItem(RESERVA_HISTORICO_KEY)) || [];
+      } catch { return []; }
+    }
+
+    function addHistoricoReserva(descricao, valor, tipo = 'entrada') {
+      const hist = getHistoricoReserva();
+      const saldoAtual = getReserva();
+      hist.unshift({
+        data: new Date().toISOString(),
+        descricao,
+        valor,
+        tipo,
+        saldo: saldoAtual + valor
+      });
+      localStorage.setItem(RESERVA_HISTORICO_KEY, JSON.stringify(hist.slice(0, 50)));
+    }
+
+    function atualizarReservaFechamento() {
+      const valor = getReserva();
+      const el = document.getElementById('reserva-valor-fechamento');
+      if (el) {
+        el.textContent = `R$ ${valor.toFixed(2).replace('.', ',')}`;
+        el.style.color = valor >= 0 ? '#22c55e' : '#ef4444';
+      }
+    }
+
+    async function transferirLucroMesAnterior(forcar = false) {
+      const agora = new Date();
+      const mesAtual = agora.getMonth() + 1;
+      const anoAtual = agora.getFullYear();
+      const chaveMes = `${anoAtual}-${String(mesAtual).padStart(2,'0')}`;
+      const ultimoMesProcessado = localStorage.getItem(RESERVA_ULTIMO_MES_KEY);
+
+      if (!forcar && ultimoMesProcessado === chaveMes) {
+        showToast('ℹ️ Lucro do mês anterior já foi transferido para a reserva.', 'warning');
+        return;
+      }
+
+      const mesAnterior = mesAtual === 1 ? 12 : mesAtual - 1;
+      const anoAnterior = mesAtual === 1 ? anoAtual - 1 : anoAtual;
+      const mesAnteriorStr = `${anoAnterior}-${String(mesAnterior).padStart(2,'0')}`;
+
+      const entradas = await window.api.buscar('caixa_entrada');
+      const saidas = await window.api.buscar('caixa_saida');
+
+      const entradasMes = (entradas.dados || []).filter(e => {
+        if (!e.data) return false;
+        return e.data.startsWith(mesAnteriorStr);
+      });
+      const saidasMes = (saidas.dados || []).filter(s => {
+        if (!s.data) return false;
+        return s.data.startsWith(mesAnteriorStr) && s.tipo_saida === 'empresarial';
+      });
+
+      const totalEntradas = entradasMes.reduce((acc, e) => acc + (e.venda || e.valor_liquido || 0), 0);
+      const totalSaidas = saidasMes.reduce((acc, s) => acc + (s.valor || 0), 0);
+      const lucroMesAnterior = totalEntradas - totalSaidas;
+
+      if (lucroMesAnterior === 0) {
+        showToast('ℹ️ O lucro do mês anterior foi zero, nada a transferir.', 'info');
+        localStorage.setItem(RESERVA_ULTIMO_MES_KEY, chaveMes);
+        return;
+      }
+
+      if (forcar) {
+        if (!confirm(`🔁 Deseja adicionar R$ ${lucroMesAnterior.toFixed(2).replace('.', ',')} (lucro de ${mesAnteriorStr}) à reserva?`)) {
+          return;
+        }
+      }
+
+      const reservaAtual = getReserva();
+      const novaReserva = reservaAtual + lucroMesAnterior;
+      setReserva(novaReserva);
+
+      addHistoricoReserva(
+        `Transferência automática do lucro de ${mesAnteriorStr}`,
+        lucroMesAnterior,
+        'entrada'
+      );
+
+      localStorage.setItem(RESERVA_ULTIMO_MES_KEY, chaveMes);
+
+      atualizarReservaFechamento();
+      showToast(`✅ Lucro de ${mesAnteriorStr} (R$ ${lucroMesAnterior.toFixed(2).replace('.', ',')}) adicionado à reserva!`, 'success');
+    }
+
+    // Função específica para o botão do fechamento
+    async function transferirLucroParaReserva() {
+      await transferirLucroMesAnterior(true);
+    }
+
+    // ============================================
+    // FECHAMENTO DE CAIXA (original)
+    // ============================================
+    function ajustarDataFechamento() {
+      const data = document.getElementById('fechamento-data');
+      if (document.getElementById('fechamento-periodo').value === 'mensal' && data.value) {
+        const [ano, mes] = data.value.split('-').map(Number);
+        data.value = `${ano}-${String(mes).padStart(2, '0')}-${String(new Date(ano, mes, 0).getDate()).padStart(2, '0')}`;
+      }
+      carregarSaldoEsperado();
+    }
+
+    async function carregarSaldoEsperado() {
+      try {
+        const dataInput = document.getElementById('fechamento-data');
+        const limite = dataInput.value || new Date().toISOString().split('T')[0];
+        const [contas, entradas, saidas] = await Promise.all([
+          window.api.contasBuscar(),
+          window.api.buscar('caixa_entrada'),
+          window.api.buscar('caixa_saida')
+        ]);
+        let total = (contas.dados || []).reduce((acc, c) => acc + (Number(c.saldo_inicial) || 0), 0);
+        (entradas.dados || []).forEach(e => {
+          if (e.data && e.data <= limite && e.tipo !== 'transferencia' && (!e.status || ['confirmado', 'pago', 'recebido', 'quitado'].includes(e.status))) {
+            total += Number(e.valor_liquido !== undefined ? e.valor_liquido : (e.venda || 0)) || 0;
+          }
+        });
+        (saidas.dados || []).forEach(s => {
+          if (s.data && s.data <= limite && s.tipo_saida !== 'transferencia' && s.pago !== false && !['pendente', 'vencida', 'cancelada', 'cancelado'].includes(s.status)) {
+            total -= Number(s.valor) || 0;
+          }
+        });
+        document.getElementById('saldo-esperado').textContent = `R$ ${total.toFixed(2).replace('.', ',')}`;
+        return total;
+      } catch(e) { console.error('Erro no saldo esperado:', e); return 0; }
+    }
+
+    async function confirmarFechamento() {
+      const esperado = await carregarSaldoEsperado();
+      const informado = parseFloat(document.getElementById('saldo-informado').value) || 0;
+      const diff = esperado - informado;
+      const diffEl = document.getElementById('diferenca');
+      if (Math.abs(diff) < 0.01) {
+        diffEl.className = 'diff ok';
+        diffEl.textContent = '✅ Caixa fechado com sucesso! Sem diferença.';
+        showToast('✅ Fechamento perfeito!', 'success');
+      } else {
+        diffEl.className = 'diff erro';
+        diffEl.textContent = `⚠️ Diferença de R$ ${diff.toFixed(2).replace('.', ',')}. Verifique o caixa!`;
+        showToast('⚠️ Diferença detectada!', 'warning');
+      }
+      // Salvar histórico
+      const historico = JSON.parse(localStorage.getItem('fechamentos_caixa') || '[]');
+      historico.push({
+        data: new Date().toISOString(),
+        esperado: esperado,
+        informado: informado,
+        diff: diff,
+        status: Math.abs(diff) < 0.01 ? 'ok' : 'erro'
+      });
+      localStorage.setItem('fechamentos_caixa', JSON.stringify(historico.slice(-20)));
+      carregarHistorico();
+    }
+
+    function carregarHistorico() {
+      const historico = JSON.parse(localStorage.getItem('fechamentos_caixa') || '[]');
+      const container = document.getElementById('lista-fechamentos');
+      if (historico.length === 0) {
+        container.innerHTML = '<p>Nenhum fechamento registrado.</p>';
+        return;
+      }
+      container.innerHTML = historico.map(h => `
+        <div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border);">
+          <span>${new Date(h.data).toLocaleString('pt-BR')}</span>
+          <span>Esperado: R$ ${h.esperado.toFixed(2).replace('.', ',')}</span>
+          <span>Informado: R$ ${h.informado.toFixed(2).replace('.', ',')}</span>
+          <span style="color:${h.status === 'ok' ? 'var(--success)' : 'var(--danger)'}">${h.status === 'ok' ? '✅ OK' : '⚠️ Diferença'}</span>
+        </div>
+      `).join('');
+    }
+
+    // ============================================
+    // INICIALIZAÇÃO
+    // ============================================
+    document.addEventListener('DOMContentLoaded', async () => {
+      document.getElementById('fechamento-data').value = new Date().toISOString().split('T')[0];
+      await carregarSaldoEsperado();
+      carregarHistorico();
+      atualizarReservaFechamento();
+    });
+
+    // Expor funções globalmente
+    window.carregarSaldoEsperado = carregarSaldoEsperado;
+    window.confirmarFechamento = confirmarFechamento;
+    window.transferirLucroParaReserva = transferirLucroParaReserva;
+    window.showToast = showToast;
+    window.fazerLogout = fazerLogout;
+    window.getReserva = getReserva;
+  </script>
+
+  <script src="../js/carregarMenu.js"></script>
+
+  <script src="../js/glitter.js"></script>
+</body>
+</html>

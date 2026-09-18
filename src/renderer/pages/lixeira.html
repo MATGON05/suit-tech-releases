@@ -1,0 +1,150 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lixeira - SUIT-TECH</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <script>
+    (function() {
+      const sessao = localStorage.getItem('sessao_suittech');
+      if (!sessao) { window.location.href = 'login.html'; return; }
+      try {
+        const dados = JSON.parse(sessao);
+        if (!dados.logado) { window.location.href = 'login.html'; return; }
+      } catch (e) { window.location.href = 'login.html'; }
+    })();
+  </script>
+  <style>
+    .lixeira-stats { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:20px; }
+    @media(max-width:768px){ .lixeira-stats { grid-template-columns:repeat(2,1fr); } }
+  </style>
+  <link rel="stylesheet" href="../css/tema-novo-overrides.css">
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand"><span class="logo"><img src="../assets/logo.png" alt="SUIT-TECH"></span><div><h1>SUIT-TECH</h1><small>Assistência Técnica</small></div></div>
+      <div id="menu-container"></div>
+      <footer class="sidebar-footer"><span>Rodando local</span><br><button onclick="fazerLogout()" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:12px;margin-top:8px;">🚪 Sair</button></footer>
+    </aside>
+
+    <main class="content">
+      <header class="topbar"><h2>🗑️ Lixeira</h2><button class="btn btn-danger" onclick="esvaziarLixeira()">Esvaziar Lixeira</button></header>
+      <div class="lixeira-stats">
+        <div class="stat-card accent-red"><span class="stat-label">Total Itens</span><strong class="stat-value" id="lixeira-total">0</strong></div>
+        <div class="stat-card accent-orange"><span class="stat-label">Orçamentos</span><strong class="stat-value" id="lixeira-vendas">0</strong></div>
+        <div class="stat-card accent-purple"><span class="stat-label">Outros</span><strong class="stat-value" id="lixeira-outros">0</strong></div>
+      </div>
+      <section class="panel">
+        <div class="toolbar"><span style="color:var(--text-muted);font-size:13px;" id="lixeira-count">0 itens</span></div>
+        <table class="data-table">
+          <thead><tr><th>Origem</th><th>Descrição</th><th>Data Exclusão</th><th>Motivo</th><th class="actions">Ações</th></tr></thead>
+          <tbody id="lixeira-table"><tr><td colspan="5" class="empty">Carregando...</td></tr></tbody>
+        </table>
+      </section>
+    </main>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="../js/api.js"></script>
+  <script src="../js/app.js"></script>
+  <script src="../js/utils.js"></script>
+  <script>
+    let lixeiraCache = [];
+
+    async function loadLixeira() {
+      try {
+        const result = await window.api.buscar('lixeira');
+        lixeiraCache = result.sucesso ? result.dados : [];
+        renderLixeira();
+        atualizarResumoLixeira();
+      } catch(e) { lixeiraCache = []; renderLixeira(); }
+    }
+
+    function renderLixeira() {
+      const tbody = document.getElementById('lixeira-table');
+      const countEl = document.getElementById('lixeira-count');
+      if (lixeiraCache.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="empty">🗑️ Lixeira vazia</td></tr>`;
+        if (countEl) countEl.textContent = '0 itens';
+        return;
+      }
+      countEl.textContent = `${lixeiraCache.length} itens`;
+      tbody.innerHTML = lixeiraCache.map(item => `
+        <tr>
+          <td><span class="status-badge status-pendente">${item.colecaoOrigem || 'Desconhecido'}</span></td>
+          <td>${item.descricao || item.venda || item.cliente || item.nome || 'Sem descrição'}</td>
+          <td>${item.dataExclusao ? new Date(item.dataExclusao).toLocaleDateString('pt-BR') : '-'}</td>
+          <td>${item.motivo || 'Excluído'}</td>
+          <td class="actions">
+            <button class="btn btn-success" onclick="restaurarItem('${item._id}')">↩️ Restaurar</button>
+            <button class="btn btn-danger" onclick="excluirPermanente('${item._id}')">🗑️</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function atualizarResumoLixeira() {
+      let total = lixeiraCache.length;
+      let vendas = 0, outros = 0;
+      lixeiraCache.forEach(item => {
+        const origem = item.colecaoOrigem || '';
+        if (origem === 'vendas' || origem === 'orcamentos') vendas++;
+        else outros++;
+      });
+      document.getElementById('lixeira-total').textContent = total;
+      document.getElementById('lixeira-vendas').textContent = vendas;
+      document.getElementById('lixeira-outros').textContent = outros;
+    }
+
+    async function restaurarItem(id) {
+      if (!confirm('↩️ Restaurar este item?')) return;
+      try {
+        const item = lixeiraCache.find(l => l._id === id);
+        if (!item) return;
+        const { _id, dataExclusao, colecaoOrigem, motivo, ...dadosRestaurados } = item;
+        const resultado = await window.api.salvar(colecaoOrigem, dadosRestaurados);
+        if (!resultado.sucesso) { showToast('❌ Erro: ' + resultado.erro, 'error'); return; }
+        await window.api.deletar('lixeira', id);
+        showToast('✅ Item restaurado!', 'success');
+        await loadLixeira();
+      } catch(e) { showToast('❌ Erro: ' + e.message, 'error'); }
+    }
+
+    async function excluirPermanente(id) {
+      if (!confirm('⚠️ Excluir PERMANENTEMENTE? Esta ação não pode ser desfeita!')) return;
+      try {
+        const resultado = await window.api.deletar('lixeira', id);
+        if (resultado.sucesso) { showToast('🗑️ Item excluído permanentemente!', 'warning'); await loadLixeira(); }
+        else showToast('❌ Erro: ' + resultado.erro, 'error');
+      } catch(e) { showToast('❌ Erro: ' + e.message, 'error'); }
+    }
+
+    async function esvaziarLixeira() {
+      const total = lixeiraCache.length;
+      if (total === 0) { showToast('🗑️ Lixeira já está vazia!', 'warning'); return; }
+      if (!confirm(`⚠️ Deseja excluir PERMANENTEMENTE todos os ${total} itens?`)) return;
+      if (!confirm(`🔴 ÚLTIMA CONFIRMAÇÃO: Excluir ${total} itens permanentemente?`)) return;
+      try {
+        for (const item of lixeiraCache) {
+          await window.api.deletar('lixeira', item._id);
+        }
+        showToast(`🗑️ ${total} itens excluídos permanentemente!`, 'warning');
+        await loadLixeira();
+      } catch(e) { showToast('❌ Erro: ' + e.message, 'error'); }
+    }
+
+    document.addEventListener('DOMContentLoaded', loadLixeira);
+
+    window.loadLixeira = loadLixeira; window.renderLixeira = renderLixeira;
+    window.restaurarItem = restaurarItem; window.excluirPermanente = excluirPermanente;
+    window.esvaziarLixeira = esvaziarLixeira; window.showToast = showToast; window.fazerLogout = fazerLogout;
+  </script>
+
+  <script src="../js/carregarMenu.js"></script>
+
+  <script src="../js/glitter.js"></script>
+</body>
+</html>

@@ -1,0 +1,304 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agendamentos - SUIT-TECH</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <script>
+    (function() {
+      const sessao = localStorage.getItem('sessao_suittech');
+      if (!sessao) { window.location.href = 'login.html'; return; }
+      try {
+        const dados = JSON.parse(sessao);
+        if (!dados.logado) { window.location.href = 'login.html'; return; }
+      } catch (e) { window.location.href = 'login.html'; }
+    })();
+  </script>
+  <link rel="stylesheet" href="../css/tema-novo-overrides.css">
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand"><span class="logo"><img src="../assets/logo.png" alt="SUIT-TECH"></span><div><h1>SUIT-TECH</h1><small>Assistência Técnica</small></div></div>
+      <div id="menu-container"></div>
+      <footer class="sidebar-footer"><span>Rodando local</span><br><button onclick="fazerLogout()" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:12px;margin-top:8px;">🚪 Sair</button></footer>
+    </aside>
+
+    <main class="content">
+      <header class="topbar"><h2>📅 Agendamentos</h2><button class="btn btn-primary" onclick="openAppointmentModal()">+ Novo Agendamento</button></header>
+      <section class="panel">
+        <div class="toolbar">
+          <input type="text" id="search-appointment" placeholder="🔍 Buscar..." oninput="renderAppointments()">
+          <select id="filter-appointment-status" onchange="renderAppointments()">
+            <option value="">Todos</option><option value="agendado">Agendado</option>
+            <option value="confirmado">Confirmado</option><option value="cancelado">Cancelado</option>
+            <option value="concluido">Concluído</option>
+          </select>
+          <span style="color:var(--text-muted);font-size:13px;" id="appointment-count">0 agendamentos</span>
+        </div>
+        <div class="table-wrapper">
+          <table class="data-table">
+            <thead><tr><th>ID</th><th>Data/Hora</th><th>Cliente</th><th>Aparelho</th><th>Status</th><th class="actions">Ações</th></tr></thead>
+            <tbody id="appointments-table"><tr><td colspan="6" class="empty">Carregando...</td></tr></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="appointment-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header"><h3 id="appointment-modal-title">Novo Agendamento</h3><button class="close" onclick="closeAppointmentModal()">&times;</button></div>
+      <form id="appointment-form" onsubmit="saveAppointment(event)">
+        <input type="hidden" id="appointment-id">
+        <div style="background:var(--surface-2);padding:16px;border-radius:var(--radius-sm);margin-bottom:16px;">
+          <h4 style="color:var(--text-secondary);margin-bottom:12px;">👤 Dados do Cliente</h4>
+          <div class="form-grid">
+            <div class="form-group span-2">
+              <label>Selecione o Cliente</label>
+              <select id="appointment-cliente-select" onchange="preencherDadosCliente('appointment-cliente-select', {nome: 'appointment-client'})">
+                <option value="">Selecione um cliente...</option>
+              </select>
+            </div>
+            <div class="form-group span-2">
+              <label>Nome do Cliente *</label>
+              <input type="text" id="appointment-client" required readonly style="background:var(--surface-3);">
+            </div>
+          </div>
+        </div>
+        <div style="background:var(--surface-2);padding:16px;border-radius:var(--radius-sm);margin-bottom:16px;">
+          <h4 style="color:var(--text-secondary);margin-bottom:12px;">📅 Dados do Agendamento</h4>
+          <div class="form-grid">
+            <div class="form-group span-2"><label>Aparelho</label><input type="text" id="appointment-device"></div>
+            <div class="form-group span-2"><label>Data e Hora *</label><input type="datetime-local" id="appointment-date" required></div>
+            <div class="form-group"><label>Status</label><select id="appointment-status"><option value="agendado">Agendado</option><option value="confirmado">Confirmado</option><option value="cancelado">Cancelado</option><option value="concluido">Concluído</option></select></div>
+            <div class="form-group span-2"><label>Observações</label><textarea id="appointment-notes" rows="3"></textarea></div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn" onclick="closeAppointmentModal()">Cancelar</button>
+          <button type="submit" class="btn btn-primary">💾 Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="../js/api.js"></script>
+  <script src="../js/app.js"></script>
+  <script src="../js/utils.js"></script>
+  <script>
+    let appointmentsCache = [], clientsCache = [];
+
+    async function carregarClientesParaSelect() {
+      try {
+        const result = await window.api.buscar('clientes');
+        clientsCache = result.sucesso ? result.dados : [];
+        popularSelectClientes('appointment-cliente-select');
+      } catch(e) { clientsCache = []; }
+    }
+
+    function popularSelectClientes(selectId, selectedValue = '') {
+      const select = document.getElementById(selectId);
+      if (!select) return;
+      select.innerHTML = '<option value="">Selecione um cliente...</option>';
+      clientsCache.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c._id || c.id;
+        opt.textContent = c.nome + (c.telefone ? ' - ' + c.telefone : '');
+        opt.dataset.nome = c.nome || '';
+        opt.dataset.telefone = c.telefone || '';
+        opt.dataset.email = c.email || '';
+        opt.dataset.cpf = c.cpf || '';
+        opt.dataset.endereco = c.endereco || '';
+        if (opt.value === selectedValue || c._id === selectedValue || c.id == selectedValue) opt.selected = true;
+        select.appendChild(opt);
+      });
+    }
+
+    window.preencherDadosCliente = function(selectId, mapeamento) {
+      const select = document.getElementById(selectId);
+      if (!select) return;
+      const option = select.options[select.selectedIndex];
+      if (!option || !option.value) {
+        Object.values(mapeamento).forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+        return;
+      }
+      Object.entries(mapeamento).forEach(([key, id]) => {
+        const el = document.getElementById(id);
+        if (el) el.value = option.dataset[key] || '';
+      });
+    };
+
+    async function loadAppointments() {
+      try {
+        const result = await window.api.buscar('agendamentos');
+        appointmentsCache = result.sucesso ? result.dados : [];
+        renderAppointments();
+      } catch(e) { appointmentsCache = []; renderAppointments(); }
+    }
+
+    function renderAppointments() {
+      const q = document.getElementById('search-appointment')?.value.toLowerCase() || '';
+      const status = document.getElementById('filter-appointment-status')?.value || '';
+      const tbody = document.getElementById('appointments-table');
+      const countEl = document.getElementById('appointment-count');
+      let filtered = appointmentsCache;
+      if (q) filtered = filtered.filter(a => (a.cliente || '').toLowerCase().includes(q) || (a.aparelho || '').toLowerCase().includes(q));
+      if (status) filtered = filtered.filter(a => a.status === status);
+      countEl.textContent = `${filtered.length} agendamentos`;
+      if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="empty">Nenhum agendamento</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = filtered.map(a => `
+        <tr>
+          <td>#${a._id?.slice(-4) || '-'}</td>
+          <td>${a.data ? new Date(a.data).toLocaleString('pt-BR') : '-'}</td>
+          <td>${a.cliente || '-'}</td>
+          <td>${a.aparelho || '-'}</td>
+          <td><span class="status-badge status-${a.status || 'agendado'}">${a.status || 'Agendado'}</span></td>
+          <td class="actions">
+            <button class="btn btn-primary" onclick="editAppointment('${a._id}')">✏️</button>
+            <button class="btn btn-success" onclick="enviarLembreteAgendamento('${a._id}')">📅</button>
+            <button class="btn btn-purple" onclick="imprimirAgendamento('${a._id}')">🖨️</button>
+            <button class="btn btn-danger" onclick="deleteAppointment('${a._id}')">🗑️</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function imprimirAgendamento(id) {
+      const a = appointmentsCache.find(x => x._id === id);
+      if (!a) return;
+      const statusMap = { agendado:'Agendado', confirmado:'Confirmado', cancelado:'Cancelado', concluido:'Concluído' };
+      const conteudo = `
+        <!DOCTYPE html><html><head><title>Agendamento</title><style>
+        body{font-family:'Segoe UI',Arial,sans-serif;padding:30px;max-width:800px;margin:0 auto;background:#fff;color:#1a1a2e}
+        .header{text-align:center;border-bottom:3px solid #3b82f6;padding-bottom:15px;margin-bottom:20px}
+        .header h1{color:#3b82f6;font-size:24px}
+        .info-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:20px}
+        .info-item{padding:8px 12px;background:#f8f9fa;border-radius:4px;border-left:3px solid #3b82f6}
+        .info-item strong{display:block;color:#666;font-size:10px;text-transform:uppercase}
+        .info-item span{font-size:14px;font-weight:500}
+        .status-badge{display:inline-block;padding:3px 14px;border-radius:20px;font-size:12px;font-weight:600}
+        .status-agendado{background:#fef3c7;color:#d97706}
+        .status-confirmado{background:#dbeafe;color:#2563eb}
+        .status-cancelado{background:#fee2e2;color:#dc2626}
+        .status-concluido{background:#d1fae5;color:#059669}
+        .footer{text-align:center;margin-top:30px;color:#999;font-size:11px;border-top:1px solid #e5e7eb;padding-top:15px}
+        .no-print{text-align:center;margin-top:20px}
+        .no-print button{padding:8px 24px;border:none;border-radius:4px;cursor:pointer;font-size:13px;font-weight:600;margin:0 4px}
+        .btn-print{background:#3b82f6;color:#fff}
+        .btn-close{background:#6b7280;color:#fff}
+        @media print{.no-print{display:none!important}body{padding:15px}}
+        </style></head><body>
+        <div class="header"><h1>SUIT-TECH</h1><p>Assistência Técnica</p></div>
+        <div class="info-grid">
+          <div class="info-item"><strong>Cliente</strong><span>${a.cliente||'-'}</span></div>
+          <div class="info-item"><strong>Data/Hora</strong><span>${a.data?new Date(a.data).toLocaleString('pt-BR'):'-'}</span></div>
+          <div class="info-item"><strong>Aparelho</strong><span>${a.aparelho||'-'}</span></div>
+          <div class="info-item"><strong>Status</strong><span class="status-badge status-${a.status||'agendado'}">${statusMap[a.status]||'Agendado'}</span></div>
+        </div>
+        ${a.obs ? `<div class="obs"><strong>📝 Observações:</strong><p>${a.obs}</p></div>` : ''}
+        <div class="footer"><p>Agendamento realizado no sistema SUIT-TECH</p></div>
+        <div class="no-print"><button class="btn-print" onclick="window.print()">🖨️ Imprimir</button><button class="btn-close" onclick="window.close()">✖ Fechar</button></div>
+      </body></html>`;
+      const win = window.open('', '_blank', 'width=800,height=600');
+      win.document.write(conteudo);
+      win.document.close();
+    }
+
+    function enviarLembreteAgendamento(id) {
+      const a = appointmentsCache.find(x => x._id === id);
+      if (!a) return;
+      const cliente = clientsCache.find(c => c.nome === a.cliente);
+      const telefone = cliente?.telefone || '';
+      if (!telefone) { showToast('❌ Cliente sem telefone!', 'error'); return; }
+      const msg = `📅 *SUIT-TECH - Lembrete de Agendamento*\n\nOlá ${a.cliente}, tudo bem?\n\nSeu agendamento está marcado para:\n📆 ${a.data ? new Date(a.data).toLocaleString('pt-BR') : '--'}\n📱 Aparelho: ${a.aparelho || 'Não informado'}\n\n⏰ Por favor, confirme sua presença.\n\n🛠️ *SUIT-TECH - Assistência Técnica*`;
+      enviarWhatsApp(telefone, msg);
+      showToast('📤 Lembrete enviado!', 'success');
+    }
+
+    function openAppointmentModal(appointment = null) {
+      document.getElementById('appointment-modal-title').textContent = appointment ? '✏️ Editar Agendamento' : '➕ Novo Agendamento';
+      document.getElementById('appointment-id').value = appointment ? appointment._id : '';
+      if (appointment && appointment.clienteId) {
+        popularSelectClientes('appointment-cliente-select', appointment.clienteId);
+      } else {
+        popularSelectClientes('appointment-cliente-select');
+      }
+      document.getElementById('appointment-client').value = appointment ? appointment.cliente : '';
+      document.getElementById('appointment-device').value = appointment ? appointment.aparelho : '';
+      document.getElementById('appointment-date').value = appointment?.data ? new Date(appointment.data).toISOString().slice(0, 16) : '';
+      document.getElementById('appointment-status').value = appointment ? appointment.status : 'agendado';
+      document.getElementById('appointment-notes').value = appointment ? appointment.obs || '' : '';
+      document.getElementById('appointment-modal').classList.add('open');
+    }
+
+    function closeAppointmentModal() {
+      document.getElementById('appointment-modal').classList.remove('open');
+    }
+
+    async function saveAppointment(e) {
+      e.preventDefault();
+      const id = document.getElementById('appointment-id').value;
+      const clienteId = document.getElementById('appointment-cliente-select').value;
+      const cliente = clientsCache.find(c => c._id === clienteId);
+      const body = {
+        cliente: cliente ? cliente.nome : document.getElementById('appointment-client').value.trim(),
+        clienteId: clienteId || null,
+        aparelho: document.getElementById('appointment-device').value.trim(),
+        data: document.getElementById('appointment-date').value,
+        status: document.getElementById('appointment-status').value,
+        obs: document.getElementById('appointment-notes').value.trim()
+      };
+      if (!body.cliente || !body.data) { showToast('❌ Cliente e Data são obrigatórios!', 'error'); return; }
+      try {
+        let resultado;
+        if (id) resultado = await window.api.atualizar('agendamentos', id, body);
+        else resultado = await window.api.salvar('agendamentos', body);
+        if (resultado.sucesso) {
+          closeAppointmentModal();
+          showToast('✅ Agendamento salvo!', 'success');
+          await loadAppointments();
+        } else showToast('❌ Erro: ' + resultado.erro, 'error');
+      } catch(e) { showToast('❌ Erro: ' + e.message, 'error'); }
+    }
+
+    async function editAppointment(id) {
+      const a = appointmentsCache.find(x => x._id === id);
+      if (a) openAppointmentModal(a);
+      else showToast('❌ Agendamento não encontrado', 'error');
+    }
+
+    async function deleteAppointment(id) {
+      if (!confirm('Excluir este agendamento?')) return;
+      const resultado = await window.api.deletar('agendamentos', id);
+      if (resultado.sucesso) { showToast('✅ Excluído!', 'success'); await loadAppointments(); }
+      else showToast('❌ Erro: ' + resultado.erro, 'error');
+    }
+
+    document.addEventListener('click', function(e) {
+      if (e.target.classList.contains('modal')) e.target.classList.remove('open');
+    });
+    document.addEventListener('DOMContentLoaded', async function() {
+      await carregarClientesParaSelect();
+      await loadAppointments();
+    });
+
+    window.loadAppointments = loadAppointments; window.renderAppointments = renderAppointments;
+    window.openAppointmentModal = openAppointmentModal; window.closeAppointmentModal = closeAppointmentModal;
+    window.saveAppointment = saveAppointment; window.editAppointment = editAppointment;
+    window.deleteAppointment = deleteAppointment; window.imprimirAgendamento = imprimirAgendamento;
+    window.enviarLembreteAgendamento = enviarLembreteAgendamento;
+    window.showToast = showToast; window.fazerLogout = fazerLogout;
+  </script>
+
+  <script src="../js/carregarMenu.js"></script>
+
+  <script src="../js/glitter.js"></script>
+</body>
+</html>

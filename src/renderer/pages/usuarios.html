@@ -1,0 +1,280 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerenciar Usuários - SUIT-TECH</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <script>
+        (function() {
+            const sessao = localStorage.getItem('sessao_suittech');
+            if (!sessao) { window.location.href = 'login.html'; return; }
+            try {
+                const dados = JSON.parse(sessao);
+                if (!dados.logado) { window.location.href = 'login.html'; return; }
+                if (dados.perfil !== 'admin' && dados.usuario !== 'admin') {
+                    alert('⚠️ Apenas o Administrador pode gerenciar usuários!');
+                    window.location.href = 'index.html';
+                    return;
+                }
+            } catch (e) { window.location.href = 'login.html'; }
+        })();
+    </script>
+  <link rel="stylesheet" href="../css/tema-novo-overrides.css">
+</head>
+<body>
+    <div class="app">
+        <aside class="sidebar">
+            <div class="brand">
+                <span class="logo"><img src="../assets/logo.png" alt="SUIT-TECH"></span>
+                <div><h1>SUIT-TECH</h1><small>Assistência Técnica</small></div>
+            </div>
+            <div id="menu-container"></div>
+            <footer class="sidebar-footer">
+                <span>Rodando local</span>
+                <br>
+                <button onclick="fazerLogout()" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:12px;margin-top:8px;">🚪 Sair</button>
+            </footer>
+        </aside>
+        <main class="content">
+            <header class="topbar">
+                <h2>👤 Gerenciar Usuários</h2>
+                <button class="btn btn-primary" onclick="openUsuarioModal()">+ Novo Usuário</button>
+            </header>
+            <section class="panel">
+                <div class="toolbar">
+                    <input type="text" id="search-usuario" placeholder="🔍 Buscar usuário..." oninput="renderUsuarios()">
+                    <span style="color:var(--text-muted);font-size:13px;" id="usuario-count">0 usuários</span>
+                </div>
+                <table class="data-table">
+                    <thead>
+                        <tr><th>Usuário</th><th>Nome</th><th>Status</th><th class="actions">Ações</th></tr>
+                    </thead>
+                    <tbody id="usuarios-table">
+                        <tr><td colspan="4" class="empty">Carregando...</td></tr>
+                    </tbody>
+                </table>
+            </section>
+        </main>
+    </div>
+
+    <div id="usuario-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="usuario-modal-title">Novo Usuário</h3>
+                <button class="close" onclick="closeUsuarioModal()">&times;</button>
+            </div>
+            <form id="usuario-form" onsubmit="saveUsuario(event)">
+                <input type="hidden" id="usuario-id">
+                <div class="form-grid">
+                    <div class="form-group span-2"><label>Usuário (login) *</label><input type="text" id="usuario-usuario" required placeholder="Ex: joao.silva"></div>
+                    <div class="form-group span-2"><label>Nome Completo *</label><input type="text" id="usuario-nome" required placeholder="Ex: João Silva"></div>
+                    <div class="form-group span-2"><label>Perfil de Acesso</label><select id="usuario-perfil"><option value="atendente">Atendente</option><option value="tecnico">Técnico</option><option value="gerente">Gerente</option><option value="admin">Administrador</option></select></div>
+                    <div class="form-group span-2"><label>Senha *</label><input type="password" id="usuario-senha" required placeholder="Digite uma senha segura"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn" onclick="closeUsuarioModal()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">💾 Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <script src="../js/utils.js"></script>
+    <script>
+        let usuariosCache = [];
+
+        // ============================================
+        // CARREGAR USUÁRIOS (COMPARTILHADOS)
+        // ============================================
+        async function loadUsuarios() {
+            try {
+                if (typeof window.api !== 'undefined' && window.api.usuariosBuscar) {
+                    const resultado = await window.api.usuariosBuscar();
+                    if (resultado.sucesso) {
+                        usuariosCache = resultado.dados || [];
+                        renderUsuarios();
+                        return;
+                    }
+                }
+                // Fallback
+                usuariosCache = [
+                    { id: '1', usuario: 'admin', nome: 'Administrador', senha: 'admin123' },
+                    { id: '2', usuario: 'usuario', nome: 'Usuário', senha: '123456' }
+                ];
+                renderUsuarios();
+            } catch (erro) {
+                console.error('Erro:', erro);
+                usuariosCache = [];
+                renderUsuarios();
+            }
+        }
+
+        // ============================================
+        // SALVAR USUÁRIOS
+        // ============================================
+        async function salvarUsuarios() {
+            try {
+                if (typeof window.api !== 'undefined' && window.api.usuariosSalvar) {
+                    await window.api.usuariosSalvar(usuariosCache);
+                }
+            } catch (e) {
+                console.error('Erro ao salvar:', e);
+            }
+        }
+
+        // ============================================
+        // RENDERIZAR
+        // ============================================
+        function renderUsuarios() {
+            const q = document.getElementById('search-usuario')?.value.toLowerCase() || '';
+            const tbody = document.getElementById('usuarios-table');
+            const countEl = document.getElementById('usuario-count');
+            if (!tbody) return;
+
+            const filtered = usuariosCache.filter(u =>
+                (u.usuario || '').toLowerCase().includes(q) ||
+                (u.nome || '').toLowerCase().includes(q)
+            );
+
+            if (countEl) countEl.textContent = `${filtered.length} usuários`;
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="4" class="empty">Nenhum usuário encontrado</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = filtered.map(u => `
+                <tr>
+                    <td><strong>${u.usuario || '-'}</strong></td>
+                    <td>${u.nome || '-'}</td>
+                    <td><span class="status-badge ${u.perfil === 'admin' || u.usuario === 'admin' ? 'status-aprovado' : 'status-pendente'}">${u.perfil || (u.usuario === 'admin' ? 'admin' : 'atendente')}</span></td>
+                    <td class="actions">
+                        <button class="btn btn-primary" onclick="editUsuario('${u.id}')" style="padding:4px 12px;font-size:12px;">✏️</button>
+                        ${u.usuario !== 'admin' ? `<button class="btn btn-danger" onclick="deleteUsuario('${u.id}')" style="padding:4px 12px;font-size:12px;">🗑️</button>` : '<span style="color:var(--text-muted);font-size:11px;">Protegido</span>'}
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // ============================================
+        // MODAL
+        // ============================================
+        function openUsuarioModal(usuario = null) {
+            document.getElementById('usuario-modal-title').textContent = usuario ? '✏️ Editar Usuário' : '➕ Novo Usuário';
+            document.getElementById('usuario-id').value = usuario ? usuario.id : '';
+            document.getElementById('usuario-usuario').value = usuario ? usuario.usuario : '';
+            document.getElementById('usuario-nome').value = usuario ? usuario.nome : '';
+            document.getElementById('usuario-perfil').value = usuario ? (usuario.perfil || (usuario.usuario === 'admin' ? 'admin' : 'atendente')) : 'atendente';
+            document.getElementById('usuario-senha').value = '';
+            document.getElementById('usuario-senha').required = !usuario;
+            document.getElementById('usuario-modal').classList.add('open');
+        }
+
+        function closeUsuarioModal() {
+            document.getElementById('usuario-modal').classList.remove('open');
+        }
+
+        // ============================================
+        // SALVAR
+        // ============================================
+        async function saveUsuario(e) {
+            e.preventDefault();
+            
+            const id = document.getElementById('usuario-id').value;
+            const usuario = document.getElementById('usuario-usuario').value.trim();
+            const nome = document.getElementById('usuario-nome').value.trim();
+            const senha = document.getElementById('usuario-senha').value.trim();
+            const perfil = document.getElementById('usuario-perfil').value;
+
+            if (!usuario || !nome) {
+                showToast('❌ Usuário e Nome são obrigatórios!', 'error');
+                return;
+            }
+
+            const existe = usuariosCache.find(u => u.usuario === usuario && u.id !== id);
+            if (existe) {
+                showToast('❌ Este usuário já está cadastrado!', 'error');
+                return;
+            }
+
+            if (!id && !senha) {
+                showToast('❌ A senha é obrigatória!', 'error');
+                return;
+            }
+
+            if (id) {
+                const index = usuariosCache.findIndex(u => u.id === id);
+                if (index !== -1) {
+                    usuariosCache[index].usuario = usuario;
+                    usuariosCache[index].nome = nome;
+                    usuariosCache[index].perfil = perfil;
+                    if (senha) usuariosCache[index].senha = senha;
+                    await salvarUsuarios();
+                    showToast('✅ Usuário atualizado!', 'success');
+                }
+            } else {
+                usuariosCache.push({ id: Date.now().toString(), usuario, nome, senha, perfil });
+                await salvarUsuarios();
+                showToast('✅ Usuário cadastrado!', 'success');
+            }
+
+            closeUsuarioModal();
+            renderUsuarios();
+
+            const sessao = JSON.parse(localStorage.getItem('sessao_suittech'));
+            if (sessao && sessao.usuario === usuario) {
+                sessao.nome = nome;
+                localStorage.setItem('sessao_suittech', JSON.stringify(sessao));
+            }
+        }
+
+        // ============================================
+        // EDITAR
+        // ============================================
+        function editUsuario(id) {
+            const u = usuariosCache.find(x => x.id === id);
+            if (u) openUsuarioModal(u);
+            else showToast('❌ Usuário não encontrado', 'error');
+        }
+
+        // ============================================
+        // DELETAR
+        // ============================================
+        async function deleteUsuario(id) {
+            const usuario = usuariosCache.find(u => u.id === id);
+            if (!confirm(`❌ Excluir "${usuario?.nome || 'este usuário'}"?`)) return;
+
+            const index = usuariosCache.findIndex(u => u.id === id);
+            if (index !== -1) {
+                usuariosCache.splice(index, 1);
+                await salvarUsuarios();
+                renderUsuarios();
+                showToast('✅ Usuário excluído!', 'success');
+            }
+        }
+
+        document.addEventListener('click', function(e) {
+            if (e.target.classList.contains('modal')) e.target.classList.remove('open');
+        });
+
+        document.addEventListener('DOMContentLoaded', loadUsuarios);
+
+        window.loadUsuarios = loadUsuarios;
+        window.renderUsuarios = renderUsuarios;
+        window.openUsuarioModal = openUsuarioModal;
+        window.closeUsuarioModal = closeUsuarioModal;
+        window.saveUsuario = saveUsuario;
+        window.editUsuario = editUsuario;
+        window.deleteUsuario = deleteUsuario;
+    </script>
+  <script src="../js/api.js"></script>
+    <script src="../js/app.js"></script>
+  
+  <script src="../js/carregarMenu.js"></script>
+
+  <script src="../js/glitter.js"></script>
+</body>
+</html>

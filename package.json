@@ -1,0 +1,65 @@
+﻿{
+  "name": "suit-tech-sistema",
+  "version": "1.0.1",
+  "description": "Sistema de Gestão SUIT-TECH - Assistência Técnica",
+  "main": "src/main/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "build": "electron-builder",
+    "postinstall": "electron-builder install-app-deps",
+    "release": "electron-builder --win --publish always"
+  },
+  "author": "SUIT-TECH Soluções em TI",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^32.2.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.suittech.app",
+    "productName": "SUIT-TECH",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "src/**/*",
+      "node_modules/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "src/main/preload.js",
+        "to": "preload.js"
+      }
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "src/renderer/assets/novo_icone.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": true,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "installerIcon": "src/renderer/assets/novo_icone.ico",
+      "uninstallerIcon": "src/renderer/assets/novo_icone.ico"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "MATGON05",
+      "repo": "suit-tech-releases",
+      "releaseType": "release"
+    }
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.116.0",
+    "electron-updater": "^6.8.9",
+    "ws": "^8.21.3"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MATGON05/suit-tech-releases.git"
+  }
+}

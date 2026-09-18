@@ -1,0 +1,234 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fornecedores - SUIT-TECH</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <script>
+    (function() {
+      const sessao = localStorage.getItem('sessao_suittech');
+      if (!sessao) { window.location.href = 'login.html'; return; }
+      try {
+        const dados = JSON.parse(sessao);
+        if (!dados.logado) { window.location.href = 'login.html'; return; }
+      } catch (e) { window.location.href = 'login.html'; }
+    })();
+  </script>
+  <link rel="stylesheet" href="../css/tema-novo-overrides.css">
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <span class="logo"><img src="../assets/logo.png" alt="SUIT-TECH"></span>
+        <div><h1>SUIT-TECH</h1><small>Assistência Técnica</small></div>
+      </div>
+      <div id="menu-container"></div>
+      <footer class="sidebar-footer">
+        <span>Rodando local</span><br>
+        <button onclick="fazerLogout()" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:12px;margin-top:8px;">🚪 Sair</button>
+      </footer>
+    </aside>
+
+    <main class="content">
+      <header class="topbar">
+        <h2>📦 Gerenciar Fornecedores</h2>
+        <button class="btn btn-primary" onclick="openFornecedorModal()">+ Novo Fornecedor</button>
+      </header>
+
+      <section class="panel">
+        <div class="toolbar">
+          <input type="text" id="search-fornecedor" placeholder="🔍 Buscar fornecedor..." oninput="renderFornecedores()">
+          <span style="color:var(--text-muted);font-size:13px;" id="fornecedor-count">0 fornecedores</span>
+        </div>
+        <div class="table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr><th>Nome</th><th>CPF/CNPJ</th><th>Telefone</th><th>E-mail</th><th class="actions">Ações</th></tr>
+            </thead>
+            <tbody id="fornecedores-table">
+              <tr><td colspan="5" class="empty">Carregando...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="fornecedor-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="fornecedor-modal-title">Novo Fornecedor</h3>
+        <button class="close" onclick="closeFornecedorModal()">&times;</button>
+      </div>
+      <form id="fornecedor-form" onsubmit="saveFornecedor(event)">
+        <input type="hidden" id="fornecedor-id">
+        <div class="form-grid">
+          <div class="form-group span-2">
+            <label>Nome *</label>
+            <input type="text" id="fornecedor-nome" required placeholder="Nome do fornecedor">
+          </div>
+          <div class="form-group">
+            <label>CPF/CNPJ</label>
+            <input type="text" id="fornecedor-doc" placeholder="000.000.000-00">
+          </div>
+          <div class="form-group">
+            <label>Telefone</label>
+            <input type="text" id="fornecedor-telefone" placeholder="(00) 00000-0000">
+          </div>
+          <div class="form-group span-2">
+            <label>E-mail</label>
+            <input type="email" id="fornecedor-email" placeholder="email@fornecedor.com">
+          </div>
+          <div class="form-group span-2">
+            <label>Endereço</label>
+            <input type="text" id="fornecedor-endereco" placeholder="Rua, número, bairro, cidade">
+          </div>
+          <div class="form-group span-2">
+            <label>Observação</label>
+            <textarea id="fornecedor-obs" rows="2"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn" onclick="closeFornecedorModal()">Cancelar</button>
+          <button type="submit" class="btn btn-primary">💾 Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="../js/api.js"></script>
+  <script src="../js/app.js"></script>
+  <script src="../js/utils.js"></script>
+  <script>
+    let fornecedoresCache = [];
+
+    async function loadFornecedores() {
+      try {
+        const result = await window.api.fornecedoresBuscar();
+        fornecedoresCache = result.sucesso ? result.dados : [];
+        renderFornecedores();
+      } catch (e) {
+        console.error(e);
+        fornecedoresCache = [];
+        renderFornecedores();
+      }
+    }
+
+    function renderFornecedores() {
+      const q = document.getElementById('search-fornecedor')?.value.toLowerCase() || '';
+      const tbody = document.getElementById('fornecedores-table');
+      const countEl = document.getElementById('fornecedor-count');
+      if (!tbody) return;
+
+      const filtered = fornecedoresCache.filter(f => (f.nome || '').toLowerCase().includes(q));
+      if (countEl) countEl.textContent = `${filtered.length} fornecedores`;
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="empty">Nenhum fornecedor</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = filtered.map(f => `
+        <tr>
+          <td><strong>${f.nome || '-'}</strong></td>
+          <td>${f.doc || '-'}</td>
+          <td>${f.telefone || '-'}</td>
+          <td>${f.email || '-'}</td>
+          <td class="actions">
+            <button class="btn btn-primary" onclick="editFornecedor('${f._id}')" style="padding:4px 12px;font-size:12px;">✏️</button>
+            <button class="btn btn-danger" onclick="deleteFornecedor('${f._id}')" style="padding:4px 12px;font-size:12px;">🗑️</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function openFornecedorModal(fornecedor = null) {
+      document.getElementById('fornecedor-modal-title').textContent = fornecedor ? '✏️ Editar Fornecedor' : '➕ Novo Fornecedor';
+      document.getElementById('fornecedor-id').value = fornecedor ? fornecedor._id : '';
+      document.getElementById('fornecedor-nome').value = fornecedor ? fornecedor.nome : '';
+      document.getElementById('fornecedor-doc').value = fornecedor ? fornecedor.doc : '';
+      document.getElementById('fornecedor-telefone').value = fornecedor ? fornecedor.telefone : '';
+      document.getElementById('fornecedor-email').value = fornecedor ? fornecedor.email : '';
+      document.getElementById('fornecedor-endereco').value = fornecedor ? fornecedor.endereco : '';
+      document.getElementById('fornecedor-obs').value = fornecedor ? fornecedor.observacao : '';
+      document.getElementById('fornecedor-modal').classList.add('open');
+    }
+
+    function closeFornecedorModal() {
+      document.getElementById('fornecedor-modal').classList.remove('open');
+    }
+
+    async function saveFornecedor(e) {
+      e.preventDefault();
+      const id = document.getElementById('fornecedor-id').value;
+      const body = {
+        nome: document.getElementById('fornecedor-nome').value.trim(),
+        doc: document.getElementById('fornecedor-doc').value.trim(),
+        telefone: document.getElementById('fornecedor-telefone').value.trim(),
+        email: document.getElementById('fornecedor-email').value.trim(),
+        endereco: document.getElementById('fornecedor-endereco').value.trim(),
+        observacao: document.getElementById('fornecedor-obs').value.trim()
+      };
+      if (!body.nome) { showToast('❌ Nome é obrigatório!', 'error'); return; }
+
+      try {
+        let result;
+        if (id) {
+          result = await window.api.fornecedoresAtualizar(id, body);
+        } else {
+          result = await window.api.fornecedoresSalvar(body);
+        }
+        if (result.sucesso) {
+          closeFornecedorModal();
+          showToast('✅ Fornecedor salvo!', 'success');
+          await loadFornecedores();
+        } else {
+          showToast('❌ Erro: ' + result.erro, 'error');
+        }
+      } catch (e) {
+        console.error(e);
+        showToast('❌ Erro: ' + e.message, 'error');
+      }
+    }
+
+    async function editFornecedor(id) {
+      const f = fornecedoresCache.find(f => f._id === id);
+      if (f) openFornecedorModal(f);
+      else showToast('❌ Fornecedor não encontrado', 'error');
+    }
+
+    async function deleteFornecedor(id) {
+      if (!confirm('Excluir este fornecedor?')) return;
+      const result = await window.api.fornecedoresDeletar(id);
+      if (result.sucesso) {
+        showToast('✅ Fornecedor excluído!', 'success');
+        await loadFornecedores();
+      } else {
+        showToast('❌ Erro: ' + result.erro, 'error');
+      }
+    }
+
+    document.addEventListener('click', function(e) {
+      if (e.target.classList.contains('modal')) e.target.classList.remove('open');
+    });
+
+    document.addEventListener('DOMContentLoaded', loadFornecedores);
+
+    window.loadFornecedores = loadFornecedores;
+    window.renderFornecedores = renderFornecedores;
+    window.openFornecedorModal = openFornecedorModal;
+    window.closeFornecedorModal = closeFornecedorModal;
+    window.saveFornecedor = saveFornecedor;
+    window.editFornecedor = editFornecedor;
+    window.deleteFornecedor = deleteFornecedor;
+  </script>
+
+  <script src="../js/carregarMenu.js"></script>
+
+  <script src="../js/glitter.js"></script>
+</body>
+</html>

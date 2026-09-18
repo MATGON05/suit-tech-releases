@@ -1,0 +1,195 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Novo Atendimento - SUIT-TECH</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/tema-novo-overrides.css">
+  <style>
+    .atendimento-grid { display:grid; grid-template-columns:minmax(0,1.35fr) minmax(300px,.8fr); gap:18px; }
+    .atendimento-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:20px; box-shadow:var(--shadow); }
+    .atendimento-card h3 { margin:0 0 15px; color:var(--text); font-size:16px; }
+    .section-kicker { color:var(--primary); font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; margin-bottom:5px; }
+    .form-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+    .span-2 { grid-column:span 2; }
+    .checklist { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:9px; }
+    .check-item { display:flex; align-items:center; gap:8px; background:var(--surface-2); border:1px solid var(--border); padding:9px 10px; border-radius:8px; color:var(--text-secondary); font-size:12px; }
+    .check-item input { accent-color:var(--primary); }
+    .summary { position:sticky; top:15px; }
+    .summary-row { display:flex; justify-content:space-between; gap:12px; padding:9px 0; border-bottom:1px solid var(--border); color:var(--text-secondary); font-size:13px; }
+    .summary-total { display:flex; justify-content:space-between; padding-top:16px; color:var(--text); font-size:21px; font-weight:800; }
+    .quick-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:16px; }
+    .hint { color:var(--text-muted); font-size:12px; line-height:1.5; }
+    @media(max-width:900px) { .atendimento-grid { grid-template-columns:1fr; } .summary { position:static; } }
+    @media(max-width:560px) { .form-grid,.checklist { grid-template-columns:1fr; } .span-2 { grid-column:span 1; } }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand"><span class="logo"><img src="../assets/logo.png" alt="SUIT-TECH"></span><div><h1>SUIT-TECH</h1><small>Assistência Técnica</small></div></div>
+      <div id="menu-container"></div>
+      <footer class="sidebar-footer"><span>Rodando local</span><br><button onclick="fazerLogout()" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:12px;margin-top:8px;">🚪 Sair</button></footer>
+    </aside>
+    <main class="content">
+      <header class="topbar">
+        <div class="topbar-left"><h2>⚡ Novo Atendimento</h2><span id="os-display" style="color:var(--text-muted);font-size:13px;"></span></div>
+        <div class="topbar-right"><button class="btn" onclick="window.location.href='index.html'">← Dashboard</button></div>
+      </header>
+      <div id="toast" class="toast"></div>
+      <form id="atendimento-form" onsubmit="salvarAtendimento(event)">
+        <div class="atendimento-grid">
+          <div style="display:flex;flex-direction:column;gap:18px;">
+            <section class="atendimento-card">
+              <div class="section-kicker">Etapa 1</div><h3>👤 Cliente</h3>
+              <div class="form-grid">
+                <div class="form-group span-2"><label>Cliente cadastrado</label><select id="cliente-select" onchange="selecionarCliente()"><option value="">Novo cliente / digite abaixo</option></select></div>
+                <div class="form-group"><label>Nome *</label><input id="cliente-nome" required placeholder="Nome completo"></div>
+                <div class="form-group"><label>Telefone / WhatsApp *</label><input id="cliente-telefone" required placeholder="(00) 00000-0000"></div>
+                <div class="form-group"><label>CPF</label><input id="cliente-cpf" placeholder="000.000.000-00"></div>
+                <div class="form-group"><label>E-mail</label><input id="cliente-email" type="email" placeholder="cliente@email.com"></div>
+              </div>
+            </section>
+            <section class="atendimento-card">
+              <div class="section-kicker">Etapa 2</div><h3>📱 Equipamento e solicitação</h3>
+              <div class="form-grid">
+                <div class="form-group"><label>Tipo *</label><select id="aparelho" required><option value="">Selecione</option><option>Celular</option><option>Notebook</option><option>Tablet</option><option>Video Game</option><option>Outro</option></select></div>
+                <div class="form-group"><label>Marca e modelo</label><input id="modelo" placeholder="Ex: Samsung A54"></div>
+                <div class="form-group"><label>Número de série / IMEI</label><input id="serie"></div>
+                <div class="form-group"><label>Senha do aparelho</label><input id="senha-aparelho" type="text" placeholder="Opcional"></div>
+                <div class="form-group span-2"><label>Defeito ou solicitação *</label><textarea id="defeito" rows="3" required placeholder="Descreva o problema informado pelo cliente"></textarea></div>
+                <div class="form-group span-2"><label>Acessórios deixados</label><input id="acessorios" placeholder="Ex: carregador, capinha, cartão de memória"></div>
+              </div>
+            </section>
+            <section class="atendimento-card">
+              <div class="section-kicker">Etapa 3</div><h3>🔍 Checklist de entrada</h3>
+              <p class="hint">Marque o estado observado no recebimento para proteger a loja e o cliente.</p>
+              <div class="checklist" id="checklist-entrada"></div>
+              <div class="form-group" style="margin-top:12px;"><label>Observações de entrada</label><textarea id="obs-entrada" rows="3" placeholder="Marcas, riscos, trincos e outras observações"></textarea></div>
+            </section>
+            <section class="atendimento-card">
+              <div class="section-kicker">Etapa 4</div><h3>🛠️ Serviço e orçamento</h3>
+              <div class="form-grid">
+                <div class="form-group"><label>Status inicial</label><select id="status"><option value="pendente">Aguardando avaliação</option><option value="aprovado">Aprovado</option><option value="em-reparo">Em manutenção</option></select></div>
+                <div class="form-group"><label>Validade do orçamento</label><input id="validade" type="date"></div>
+                <div class="form-group"><label>Mão de obra (R$) *</label><input id="mao-obra" type="number" min="0" step="0.01" value="0" oninput="calcularTotal()" required></div>
+                <div class="form-group"><label>Peças / materiais (R$)</label><input id="pecas" type="number" min="0" step="0.01" value="0" oninput="calcularTotal()"></div>
+                <div class="form-group"><label>Desconto (R$)</label><input id="desconto" type="number" min="0" step="0.01" value="0" oninput="calcularTotal()"></div>
+                <div class="form-group"><label>Forma de pagamento</label><select id="forma"><option>Não informado</option><option>PIX</option><option>Dinheiro</option><option>Débito</option><option>Crédito</option></select></div>
+                <div class="form-group span-2"><label>Diagnóstico / observações técnicas</label><textarea id="diagnostico" rows="3"></textarea></div>
+              </div>
+            </section>
+            <section class="atendimento-card">
+              <div class="section-kicker">Etapa 5</div><h3>📦 Checklist de saída</h3>
+              <div class="checklist" id="checklist-saida"></div>
+              <div class="form-group" style="margin-top:12px;"><label>Observações de entrega</label><textarea id="obs-saida" rows="2" placeholder="Condições de entrega, garantia e orientações"></textarea></div>
+            </section>
+          </div>
+          <aside class="atendimento-card summary">
+            <div class="section-kicker">Resumo</div><h3>🧾 Atendimento em andamento</h3>
+            <div class="summary-row"><span>Cliente</span><strong id="resumo-cliente">Não informado</strong></div>
+            <div class="summary-row"><span>Aparelho</span><strong id="resumo-aparelho">Não informado</strong></div>
+            <div class="summary-row"><span>Mão de obra</span><strong id="resumo-mao">R$ 0,00</strong></div>
+            <div class="summary-row"><span>Peças</span><strong id="resumo-pecas">R$ 0,00</strong></div>
+            <div class="summary-row"><span>Desconto</span><strong id="resumo-desconto">R$ 0,00</strong></div>
+            <div class="summary-total"><span>Total</span><span id="resumo-total">R$ 0,00</span></div>
+            <div class="quick-actions">
+              <button type="submit" class="btn btn-primary">💾 Salvar atendimento</button>
+              <button type="button" class="btn btn-success" onclick="salvarEEnviarOrcamento()">📤 Salvar e WhatsApp</button>
+              <button type="button" class="btn btn-purple" onclick="imprimirAtendimento()">🖨️ Imprimir ficha</button>
+            </div>
+            <p class="hint" style="margin-top:15px;">Ao salvar, o cliente é cadastrado automaticamente quando for novo e a OS fica disponível na aba Orçamentos.</p>
+          </aside>
+        </div>
+      </form>
+    </main>
+  </div>
+  <script src="../js/api.js"></script>
+  <script src="../js/app.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/carregarMenu.js"></script>
+  <script>
+    const entradaItens = ['Liga / funciona','Tela sem trincas','Carcaça sem danos','Câmera funcionando','Microfone funcionando','Alto-falante funcionando','Carregando normalmente','Botões funcionando'];
+    const saidaItens = ['Equipamento testado','Cliente conferiu o aparelho','Acessórios devolvidos','Senha removida / entregue','Garantia explicada','Pagamento confirmado'];
+    let clientes = [], atendimentoSalvo = null;
+    const money = value => `R$ ${(Number(value)||0).toFixed(2).replace('.', ',')}`;
+    function renderChecklist(id, itens) {
+      document.getElementById(id).innerHTML = itens.map((item, i) => `<label class="check-item"><input type="checkbox" data-check="${id}" value="${item}" id="${id}-${i}"><span>${item}</span></label>`).join('');
+    }
+    function checks(id) { return [...document.querySelectorAll(`input[data-check="${id}"]:checked`)].map(x => x.value); }
+    async function carregarClientes() {
+      const r = await window.api.buscar('clientes');
+      clientes = r.sucesso ? (r.dados || []) : [];
+      document.getElementById('cliente-select').innerHTML = '<option value="">Novo cliente / digite abaixo</option>' + clientes.map(c => `<option value="${c._id}">${c.nome} — ${c.telefone || 'sem telefone'}</option>`).join('');
+    }
+    function selecionarCliente() {
+      const c = clientes.find(x => x._id === document.getElementById('cliente-select').value);
+      if (!c) return;
+      document.getElementById('cliente-nome').value = c.nome || '';
+      document.getElementById('cliente-telefone').value = c.telefone || '';
+      document.getElementById('cliente-cpf').value = c.cpf || '';
+      document.getElementById('cliente-email').value = c.email || '';
+      atualizarResumo();
+    }
+    function valor(id) { return parseFloat(document.getElementById(id).value) || 0; }
+    function calcularTotal() {
+      const total = Math.max(0, valor('mao-obra') + valor('pecas') - valor('desconto'));
+      document.getElementById('resumo-mao').textContent = money(valor('mao-obra'));
+      document.getElementById('resumo-pecas').textContent = money(valor('pecas'));
+      document.getElementById('resumo-desconto').textContent = money(valor('desconto'));
+      document.getElementById('resumo-total').textContent = money(total);
+      atualizarResumo(); return total;
+    }
+    function atualizarResumo() {
+      document.getElementById('resumo-cliente').textContent = document.getElementById('cliente-nome').value || 'Não informado';
+      const aparelho = [document.getElementById('aparelho').value, document.getElementById('modelo').value].filter(Boolean).join(' / ');
+      document.getElementById('resumo-aparelho').textContent = aparelho || 'Não informado';
+    }
+    function dadosAtendimento() {
+      const total = calcularTotal();
+      return { cliente: document.getElementById('cliente-nome').value.trim(), telefone: document.getElementById('cliente-telefone').value.trim(), cpf: document.getElementById('cliente-cpf').value.trim(), email: document.getElementById('cliente-email').value.trim(), aparelho: document.getElementById('aparelho').value, modelo: document.getElementById('modelo').value.trim(), serie: document.getElementById('serie').value.trim(), senha_aparelho: document.getElementById('senha-aparelho').value.trim(), defeito: document.getElementById('defeito').value.trim(), acessorios: document.getElementById('acessorios').value.trim(), checklist_entrada: checks('checklist-entrada'), checklist_saida: checks('checklist-saida'), observacoes_entrada: document.getElementById('obs-entrada').value.trim(), observacoes_saida: document.getElementById('obs-saida').value.trim(), mao_obra: valor('mao-obra'), pecas: valor('pecas'), desconto: valor('desconto'), valor: total, forma_pagamento: document.getElementById('forma').value, status: document.getElementById('status').value, validade: document.getElementById('validade').value, diagnostico: document.getElementById('diagnostico').value.trim(), pagamento: 'nao_pago', origem: 'novo_atendimento', data: new Date().toISOString(), os: 'OS-' + Date.now().toString().slice(-4) };
+    }
+    async function salvarAtendimento(event, enviar=false) {
+      if (event) event.preventDefault();
+      const body = dadosAtendimento();
+      if (!body.cliente || !body.telefone || !body.aparelho || !body.defeito) { showToast('❌ Preencha cliente, telefone, aparelho e defeito.', 'error'); return null; }
+      try {
+        let clienteId = document.getElementById('cliente-select').value;
+        if (!clienteId) {
+          const novo = await window.api.salvar('clientes', { _id:'cli_' + Date.now().toString(36), nome:body.cliente, telefone:body.telefone, cpf:body.cpf, email:body.email, data_criacao:new Date().toISOString() });
+          if (!novo.sucesso) throw new Error(novo.erro || 'Não foi possível cadastrar o cliente');
+          clienteId = novo.dados?._id || novo.dados?.id || '';
+        }
+        body.clienteId = clienteId;
+        const salvo = await window.api.salvar('vendas', body);
+        if (!salvo.sucesso) throw new Error(salvo.erro || 'Não foi possível salvar o atendimento');
+        atendimentoSalvo = { ...body, _id: salvo.dados?._id || '' };
+        showToast('✅ Atendimento salvo! OS ' + body.os, 'success');
+        document.getElementById('os-display').textContent = body.os;
+        if (enviar) enviarWhatsApp(body);
+        await carregarClientes();
+        return atendimentoSalvo;
+      } catch (e) { showToast('❌ ' + e.message, 'error'); return null; }
+    }
+    async function salvarEEnviarOrcamento() { await salvarAtendimento(null, true); }
+    function enviarWhatsApp(b=atendimentoSalvo || dadosAtendimento()) {
+      if (!b.telefone) return showToast('❌ Informe o telefone do cliente.', 'error');
+      const numero = b.telefone.replace(/\D/g, '');
+      const msg = `Olá, ${b.cliente}!\n\nSua OS ${b.os || 'em atendimento'} foi registrada na SUIT-TECH.\n\n📱 Aparelho: ${b.aparelho} ${b.modelo || ''}\n🔧 Solicitação: ${b.defeito}\n💰 Orçamento: ${money(b.valor)}\n\nAguardamos sua aprovação. Obrigado!`;
+      window.location.href = `whatsapp://send?phone=55${numero}&text=${encodeURIComponent(msg)}`;
+    }
+    function imprimirAtendimento() {
+      const b = dadosAtendimento();
+      const checksIn = checks('checklist-entrada').join(', ') || 'Nenhum item marcado';
+      const win = window.open('', '_blank', 'width=850,height=700');
+      if (!win) return showToast('❌ Permita pop-ups para imprimir.', 'error');
+      win.document.write(`<html><head><title>${b.os} - SUIT-TECH</title><style>body{font-family:Arial;padding:30px;color:#222}h1{color:#e86f00;border-bottom:2px solid #e86f00;padding-bottom:10px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.box{border:1px solid #bbb;padding:12px;margin:12px 0;border-radius:6px}strong{display:block;margin-bottom:4px} .total{font-size:22px;text-align:right;font-weight:bold}</style></head><body><h1>SUIT-TECH — Ordem de Serviço</h1><p><strong>${b.os}</strong> — ${new Date().toLocaleString('pt-BR')}</p><div class="box grid"><div><strong>Cliente</strong>${b.cliente}<br>${b.telefone}</div><div><strong>Equipamento</strong>${b.aparelho} ${b.modelo}<br>Série: ${b.serie || '-'}</div></div><div class="box"><strong>Defeito / Solicitação</strong>${b.defeito}<br><br><strong>Acessórios</strong>${b.acessorios || '-'}</div><div class="box"><strong>Checklist de entrada</strong>${checksIn}<br><br><strong>Observações</strong>${b.observacoes_entrada || '-'}</div><div class="total">Total: ${money(b.valor)}</div><p style="margin-top:50px">Assinatura do cliente: __________________________________________</p></body></html>`);
+      win.document.close(); win.focus(); win.print();
+    }
+    function showToast(msg, type='success') { const t=document.getElementById('toast'); t.textContent=msg; t.className='toast show '+type; setTimeout(()=>t.className='toast',3500); }
+    document.addEventListener('DOMContentLoaded', async () => { renderChecklist('checklist-entrada', entradaItens); renderChecklist('checklist-saida', saidaItens); document.getElementById('os-display').textContent = 'OS-' + Date.now().toString().slice(-4); await carregarClientes(); document.querySelectorAll('input,select,textarea').forEach(el => el.addEventListener('input', atualizarResumo)); atualizarResumo(); });
+    window.salvarAtendimento=salvarAtendimento; window.salvarEEnviarOrcamento=salvarEEnviarOrcamento; window.enviarWhatsApp=enviarWhatsApp; window.imprimirAtendimento=imprimirAtendimento; window.selecionarCliente=selecionarCliente; window.calcularTotal=calcularTotal;
+  </script>
+</body>
+</html>

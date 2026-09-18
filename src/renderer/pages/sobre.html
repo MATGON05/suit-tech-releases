@@ -1,0 +1,212 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sobre - SUIT-TECH</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <style>
+    .sobre-container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    .sobre-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 30px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    }
+    .sobre-card h2 {
+      color: var(--text);
+      border-bottom: 2px solid var(--primary);
+      padding-bottom: 10px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .sobre-card .logo-grande {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .sobre-card .logo-grande img {
+      max-width: 120px;
+      height: auto;
+    }
+    .sobre-card .versao {
+      display: inline-block;
+      background: var(--primary-glow);
+      color: var(--primary);
+      padding: 4px 16px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .sobre-card p {
+      color: var(--text-secondary);
+      line-height: 1.8;
+      font-size: 15px;
+    }
+    .sobre-card .info-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 16px;
+    }
+    .sobre-card .info-grid .info-item {
+      background: var(--surface-2);
+      padding: 12px 16px;
+      border-radius: var(--radius-sm);
+      border-left: 3px solid var(--primary);
+    }
+    .sobre-card .info-grid .info-item strong {
+      display: block;
+      color: var(--text-muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .sobre-card .info-grid .info-item span {
+      color: var(--text);
+      font-weight: 500;
+      font-size: 14px;
+    }
+    .sobre-card .footer-text {
+      text-align: center;
+      margin-top: 30px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border);
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+    .sobre-card .footer-text strong {
+      color: var(--text-secondary);
+    }
+    @media (max-width: 768px) {
+      .sobre-card .info-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+  <script>
+    (function() {
+      const sessao = localStorage.getItem('sessao_suittech');
+      if (!sessao) { window.location.href = 'login.html'; return; }
+      try {
+        const dados = JSON.parse(sessao);
+        if (!dados.logado) { window.location.href = 'login.html'; return; }
+      } catch (e) { window.location.href = 'login.html'; }
+    })();
+  </script>
+  <link rel="stylesheet" href="../css/tema-novo-overrides.css">
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <span class="logo"><img src="../assets/logo.png" alt="SUIT-TECH"></span>
+        <div>
+          <h1>SUIT-TECH</h1>
+          <small>Assistência Técnica</small>
+        </div>
+      </div>
+      <div id="menu-container"></div>
+      <footer class="sidebar-footer">
+        <span>Rodando local</span>
+        <br>
+        <button onclick="fazerLogout()" style="background: none; border: none; color: var(--danger); cursor: pointer; font-size: 12px; margin-top: 8px;">🚪 Sair</button>
+      </footer>
+    </aside>
+
+    <main class="content">
+      <header class="topbar">
+        <h2>📄 Sobre o SUIT-TECH</h2>
+      </header>
+
+      <div class="sobre-container">
+        <div class="sobre-card">
+          <div class="logo-grande">
+            <img src="../assets/logo.png" alt="SUIT-TECH">
+          </div>
+          <h2>🔧 SUIT-TECH</h2>
+          <p>
+            <span class="versao">Versão 2.0.0</span>
+          </p>
+          <p>
+            O <strong>SUIT-TECH</strong> é um sistema de gestão completo desenvolvido para
+            <strong>assistência técnica</strong>, permitindo o controle de clientes, orçamentos,
+            caixa, contas a pagar, comissões, agendamentos e muito mais.
+          </p>
+
+          <div class="info-grid">
+            <div class="info-item">
+              <strong>📌 Desenvolvido por</strong>
+              <span>SUIT-TECH Soluções em TI</span>
+            </div>
+            <div class="info-item">
+              <strong>📅 Ano de lançamento</strong>
+              <span>2026</span>
+            </div>
+            <div class="info-item">
+              <strong>⚙️ Tecnologias</strong>
+              <span>Electron, HTML5, CSS3, JavaScript, Chart.js</span>
+            </div>
+            <div class="info-item">
+              <strong>📦 Banco de dados</strong>
+              <span>JSON (local) + localStorage</span>
+            </div>
+            <div class="info-item">
+              <strong>🛡️ Licença</strong>
+              <span>Uso exclusivo SUIT-TECH</span>
+            </div>
+            <div class="info-item">
+              <strong>📞 Suporte</strong>
+              <span>suporte@suittech.com.br</span>
+            </div>
+          </div>
+
+          <div class="footer-text">
+            <p>
+              © 2026 <strong>SUIT-TECH</strong> – Todos os direitos reservados.<br>
+              Este sistema é protegido por leis de direitos autorais.
+            </p>
+            <p style="margin-top: 8px; font-size: 12px;">
+              Desenvolvido com ❤️ para facilitar a gestão da sua assistência técnica.
+            </p>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="../js/api.js"></script>
+  <script src="../js/app.js"></script>
+  <script src="../js/main.js"></script>
+  <script>
+    function showToast(mensagem, tipo = 'success') {
+      const toast = document.getElementById('toast');
+      if (!toast) return;
+      toast.textContent = mensagem;
+      toast.className = 'toast toast-' + tipo;
+      setTimeout(() => toast.classList.add('show'), 100);
+      setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+
+    function fazerLogout() {
+      if (confirm('Deseja realmente sair?')) {
+        localStorage.removeItem('sessao_suittech');
+        window.location.href = 'login.html';
+      }
+    }
+  </script>
+
+  <script src="../js/carregarMenu.js"></script>
+
+  <script src="../js/glitter.js"></script>
+</body>
+</html>

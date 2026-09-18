@@ -1,0 +1,298 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - SUIT-TECH</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <style>
+        .login-page {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg);
+            padding: 20px;
+        }
+        .login-box {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 48px 40px;
+            max-width: 420px;
+            width: 100%;
+            box-shadow: 0 8px 48px rgba(0,0,0,0.5);
+        }
+        .login-logo {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+        .login-logo img {
+            max-width: 80px;
+            max-height: 80px;
+            object-fit: contain;
+        }
+        .login-logo h1 {
+            font-size: 28px;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary), var(--purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-top: 8px;
+        }
+        .login-logo small {
+            color: var(--text-muted);
+            font-size: 14px;
+            display: block;
+            -webkit-text-fill-color: var(--text-muted);
+        }
+        .login-box .form-group {
+            margin-bottom: 16px;
+        }
+        .login-box .form-group label {
+            display: block;
+            color: var(--text-secondary);
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+        .login-box .form-group input {
+            width: 100%;
+            padding: 12px 16px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            color: var(--text);
+            font-size: 15px;
+            transition: var(--transition);
+        }
+        .login-box .form-group input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-glow);
+        }
+        .login-box .btn-login {
+            width: 100%;
+            padding: 14px;
+            background: var(--primary);
+            color: #fff;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            margin-top: 8px;
+        }
+        .login-box .btn-login:hover {
+            background: var(--primary-hover);
+            box-shadow: 0 4px 20px var(--primary-glow);
+            transform: translateY(-2px);
+        }
+        .login-box .btn-login:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .login-error {
+            background: var(--danger-bg);
+            color: var(--danger);
+            padding: 10px 14px;
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            margin-bottom: 16px;
+            display: none;
+            border: 1px solid rgba(239,68,68,0.2);
+        }
+        .login-error.show { display: block; }
+        .login-footer {
+            text-align: center;
+            margin-top: 20px;
+            color: var(--text-muted);
+            font-size: 12px;
+        }
+        @media (max-width: 480px) {
+            .login-box { padding: 32px 24px; }
+            .login-logo h1 { font-size: 24px; }
+        }
+    </style>
+  <link rel="stylesheet" href="../css/tema-novo-overrides.css">
+</head>
+<body>
+    <div class="login-page">
+        <div class="login-box">
+            <div class="login-logo">
+                <img src="../assets/logo.png" alt="SUIT-TECH">
+                <h1>SUIT-TECH</h1>
+                <small>Assistência Técnica</small>
+            </div>
+            <div id="login-error" class="login-error">❌ Usuário ou senha incorretos!</div>
+            <form id="login-form" onsubmit="fazerLogin(event)">
+                <div class="form-group">
+                    <label>✉️ E-mail do Supabase</label>
+                    <input type="email" id="login-user" placeholder="Digite seu e-mail" required autofocus>
+                </div>
+                <div class="form-group">
+                    <label>🔒 Senha</label>
+                    <input type="password" id="login-password" placeholder="Digite sua senha" required>
+                </div>
+                <div class="form-group" style="display:flex;align-items:center;gap:8px;margin-top:-4px;">
+                    <input type="checkbox" id="lembrar-email" style="width:auto;">
+                    <label for="lembrar-email" style="margin:0;cursor:pointer;">Lembrar e-mail e senha neste computador</label>
+                </div>
+                <button type="submit" class="btn-login" id="login-btn">🚀 Entrar</button>
+                <button type="button" id="limpar-login-lembrado" onclick="limparLoginLembrado()" style="display:none;width:100%;margin-top:10px;background:transparent;border:1px solid var(--border);color:var(--text-muted);border-radius:var(--radius-sm);padding:9px;cursor:pointer;font-size:12px;">🧹 Apagar e-mail e senha salvos</button>
+            </form>
+            <div class="login-footer">
+                <p>Sistema de Assistência Técnica v2.0</p>
+                <p style="color:var(--text-muted);font-size:11px;margin-top:4px;">🔐 Sistema protegido</p>
+            </div>
+        </div>
+    </div>
+    <script src="../js/utils.js"></script>
+    <script>
+        // ============================================
+        // USUÁRIOS COMPARTILHADOS
+        // ============================================
+        let usuariosCache = [];
+
+        async function getUsuarios() {
+            try {
+                if (typeof window.api !== 'undefined' && window.api.usuariosBuscar) {
+                    const resultado = await window.api.usuariosBuscar();
+                    if (resultado.sucesso && resultado.dados.length > 0) {
+                        usuariosCache = resultado.dados;
+                        return usuariosCache;
+                    }
+                }
+            } catch (e) {
+                console.warn('Erro ao buscar usuários:', e);
+            }
+            
+            // Sem credenciais padrão: o acesso deve ser feito pelo Supabase.
+            return [];
+        }
+
+        // ============================================
+        // FUNÇÃO DE LOGIN
+        // ============================================
+        async function fazerLogin(e) {
+            e.preventDefault();
+            
+            const user = document.getElementById('login-user').value.trim();
+            const password = document.getElementById('login-password').value.trim();
+            const lembrarEmail = document.getElementById('lembrar-email').checked;
+            const errorEl = document.getElementById('login-error');
+            const btn = document.getElementById('login-btn');
+
+            errorEl.classList.remove('show');
+
+            if (!user || !password) {
+                errorEl.textContent = '❌ Preencha todos os campos!';
+                errorEl.classList.add('show');
+                return;
+            }
+
+            if (lembrarEmail) {
+                localStorage.setItem('suittech_login_lembrado', JSON.stringify({ email: user, senha: password }));
+            } else {
+                localStorage.removeItem('suittech_login_lembrado');
+                localStorage.removeItem('suittech_email_lembrado');
+            }
+
+            if (window.electron && window.electron.supabaseLogin) {
+                btn.textContent = '⏳ Conectando...';
+                btn.disabled = true;
+                const remoto = await window.electron.supabaseLogin(user, password);
+                if (remoto.sucesso) {
+                    const sessao = {
+                        usuario: remoto.usuario.email,
+                        nome: remoto.usuario.email,
+                        perfil: ['owner', 'admin'].includes(remoto.workspaceRole) ? 'admin' : 'atendente',
+                        logado: true,
+                        remoto: true,
+                        workspaceId: remoto.workspaceId,
+                        data: new Date().toISOString()
+                    };
+                    localStorage.setItem('sessao_suittech', JSON.stringify(sessao));
+                    window.location.href = 'index.html';
+                } else {
+                    btn.textContent = '🚀 Entrar';
+                    btn.disabled = false;
+                    errorEl.textContent = '❌ ' + (remoto.erro || 'E-mail ou senha inválidos no Supabase.');
+                    errorEl.classList.add('show');
+                    document.getElementById('login-password').value = '';
+                }
+                return;
+            }
+
+            const usuarios = await getUsuarios();
+            const usuarioEncontrado = usuarios.find(u => 
+                u.usuario === user && u.senha === password
+            );
+
+            if (usuarioEncontrado) {
+                btn.textContent = '⏳ Entrando...';
+                btn.disabled = true;
+
+                const sessao = {
+                    usuario: usuarioEncontrado.usuario,
+                    nome: usuarioEncontrado.nome,
+                    perfil: usuarioEncontrado.perfil || (usuarioEncontrado.usuario === 'admin' ? 'admin' : 'atendente'),
+                    logado: true,
+                    data: new Date().toISOString()
+                };
+                localStorage.setItem('sessao_suittech', JSON.stringify(sessao));
+
+                setTimeout(() => {
+                    window.location.href = 'index.html';
+                }, 500);
+            } else {
+                errorEl.textContent = '❌ Usuário ou senha incorretos!';
+                errorEl.classList.add('show');
+                document.getElementById('login-password').value = '';
+                document.getElementById('login-password').focus();
+            }
+        }
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                document.getElementById('login-form').dispatchEvent(new Event('submit'));
+            }
+        });
+
+        function limparLoginLembrado() {
+            localStorage.removeItem('suittech_login_lembrado');
+            localStorage.removeItem('suittech_email_lembrado');
+            document.getElementById('login-user').value = '';
+            document.getElementById('login-password').value = '';
+            document.getElementById('lembrar-email').checked = false;
+            document.getElementById('limpar-login-lembrado').style.display = 'none';
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            try {
+                const salvo = JSON.parse(localStorage.getItem('suittech_login_lembrado') || 'null');
+                if (salvo && salvo.email) {
+                    document.getElementById('login-user').value = salvo.email;
+                    document.getElementById('login-password').value = salvo.senha || '';
+                    document.getElementById('lembrar-email').checked = true;
+                    document.getElementById('limpar-login-lembrado').style.display = 'block';
+                } else {
+                    const emailLembrado = localStorage.getItem('suittech_email_lembrado');
+                    if (emailLembrado) {
+                        document.getElementById('login-user').value = emailLembrado;
+                        document.getElementById('lembrar-email').checked = true;
+                    }
+                }
+            } catch (e) {
+                limparLoginLembrado();
+            }
+            // A sessão antiga não pula o login; a senha será solicitada novamente.
+            localStorage.removeItem('sessao_suittech');
+        });
+    </script>
+  <script src="../js/api.js"></script>
+    <script src="../js/app.js"></script>
+  </body>
+</html>
