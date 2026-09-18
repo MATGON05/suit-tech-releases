@@ -1,6 +1,6 @@
-﻿{
+{
   "name": "suit-tech-sistema",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Sistema de Gestão SUIT-TECH - Assistência Técnica",
   "main": "src/main/main.js",
   "scripts": {
