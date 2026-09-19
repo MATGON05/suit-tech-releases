@@ -1,0 +1,564 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Relatórios - SUIT-TECH</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    (function() {
+      const sessao = localStorage.getItem('sessao_suittech');
+      if (!sessao) { window.location.href = 'login.html'; return; }
+      try {
+        const dados = JSON.parse(sessao);
+        if (!dados.logado) { window.location.href = 'login.html'; return; }
+      } catch (e) { window.location.href = 'login.html'; }
+    })();
+  </script>
+  <link rel="stylesheet" href="../css/tema-novo-overrides.css">
+  <link rel="stylesheet" href="../css/theme.css">
+  <script src="../js/theme.js"></script>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <span class="logo"><img src="../assets/logo.png" alt="SUIT-TECH"></span>
+        <div>
+          <h1>SUIT-TECH</h1>
+          <small>Assistência Técnica</small>
+        </div>
+      </div>
+      <div id="menu-container"></div>
+      <footer class="sidebar-footer">
+        <span>Rodando local</span>
+        <br>
+        <button onclick="fazerLogout()" style="background: none; border: none; color: var(--danger); cursor: pointer; font-size: 12px; margin-top: 8px;">🚪 Sair</button>
+      </footer>
+    </aside>
+
+    <main class="content">
+      <header class="topbar">
+        <div class="topbar-left">
+          <h2>📊 Relatórios</h2>
+        </div>
+        <div class="topbar-right"></div>
+      </header>
+
+      <section class="panel">
+        <div class="toolbar">
+          <select id="report-month">
+            <option value="">Mês</option>
+            <option value="1">Janeiro</option>
+            <option value="2">Fevereiro</option>
+            <option value="3">Março</option>
+            <option value="4">Abril</option>
+            <option value="5">Maio</option>
+            <option value="6">Junho</option>
+            <option value="7">Julho</option>
+            <option value="8">Agosto</option>
+            <option value="9">Setembro</option>
+            <option value="10">Outubro</option>
+            <option value="11">Novembro</option>
+            <option value="12">Dezembro</option>
+          </select>
+          <input type="number" id="report-year" placeholder="Ano" min="2020" max="2099" value="2026">
+          <button class="btn btn-primary" onclick="generateMonthlyReport()">📊 Gerar Relatório</button>
+          <button class="btn btn-purple" onclick="exportarPDF()">📄 Exportar PDF</button>
+          <button class="btn btn-success" onclick="imprimirRelatorio()">🖨️ Imprimir</button>
+          <span style="color: var(--text-muted); font-size: 13px; margin-left: auto;" id="report-info"></span>
+        </div>
+
+        <div id="report-result" style="display:none">
+          <div class="tabs">
+            <button class="tab-btn active" onclick="showTab(event, 'tab-budget')">📋 Orçamentos</button>
+            <button class="tab-btn" onclick="showTab(event, 'tab-cashin')">💰 Caixa Entrada</button>
+            <button class="tab-btn" onclick="showTab(event, 'tab-cashout')">💸 Caixa Saída</button>
+          </div>
+
+          <!-- TAB ORÇAMENTOS -->
+          <div id="tab-budget" class="tab-content active">
+            <div class="stats-grid">
+              <div class="stat-card">
+                <span class="stat-label">Total Orçamentos</span>
+                <strong class="stat-value" id="report-total">0</strong>
+              </div>
+              <div class="stat-card accent-gold">
+                <span class="stat-label">Faturamento</span>
+                <strong class="stat-value" id="report-revenue">R$ 0,00</strong>
+              </div>
+              <div class="stat-card accent-orange">
+                <span class="stat-label">Peças</span>
+                <strong class="stat-value" id="report-parts">R$ 0,00</strong>
+              </div>
+              <div class="stat-card accent-blue">
+                <span class="stat-label">Custos Extras</span>
+                <strong class="stat-value" id="report-extra">R$ 0,00</strong>
+              </div>
+              <div class="stat-card accent-green">
+                <span class="stat-label">Lucro Estimado</span>
+                <strong class="stat-value" id="report-profit">R$ 0,00</strong>
+              </div>
+              <div class="stat-card accent-red">
+                <span class="stat-label">Contas Pendentes</span>
+                <strong class="stat-value" id="report-payables">R$ 0,00</strong>
+              </div>
+              <div class="stat-card accent-orange">
+                <span class="stat-label">Serviços em Aberto</span>
+                <strong class="stat-value" id="report-open-services">0</strong>
+              </div>
+            </div>
+            <div class="form-grid" style="margin-top:20px">
+              <div class="form-group">
+                <label>📌 Por Status</label>
+                <div id="report-status" class="status-list"></div>
+              </div>
+              <div class="form-group">
+                <label>📱 Por Aparelho</label>
+                <div id="report-device" class="status-list"></div>
+              </div>
+            </div>
+            <div class="chart-wrapper" style="margin-top:20px; height:300px">
+              <canvas id="report-budget-chart"></canvas>
+            </div>
+          </div>
+
+          <!-- TAB CAIXA ENTRADA -->
+          <div id="tab-cashin" class="tab-content">
+            <p style="color: var(--text-secondary); margin-bottom: 12px;">📈 Gráfico de entradas por dia do mês selecionado.</p>
+            <div class="chart-wrapper" style="height:300px">
+              <canvas id="report-cashin-chart"></canvas>
+            </div>
+          </div>
+
+          <!-- TAB CAIXA SAÍDA -->
+          <div id="tab-cashout" class="tab-content">
+            <p style="color: var(--text-secondary); margin-bottom: 12px;">📉 Gráfico de saídas por dia do mês selecionado.</p>
+            <div class="chart-wrapper" style="height:300px">
+              <canvas id="report-cashout-chart"></canvas>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="../js/api.js"></script>
+  <script src="../js/app.js"></script>
+    <script src="../js/main.js"></script>
+  <script>
+    function showToast(mensagem, tipo = 'success') {
+      const toast = document.getElementById('toast');
+      if (!toast) return;
+      toast.textContent = mensagem;
+      toast.className = 'toast toast-' + tipo;
+      setTimeout(() => toast.classList.add('show'), 100);
+      setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+
+    function fazerLogout() {
+      if (confirm('Deseja realmente sair?')) {
+        localStorage.removeItem('sessao_suittech');
+        window.location.href = 'login.html';
+      }
+    }
+
+    let reportBudgetChart = null;
+    let reportCashInChart = null;
+    let reportCashOutChart = null;
+
+    // ============================================
+    // MOSTRAR ABA (CORRIGIDO)
+    // ============================================
+    function showTab(event, id) {
+      // Remove active de todas as abas
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+      
+      // Ativa a aba selecionada
+      document.getElementById(id).classList.add('active');
+      
+      // Ativa o botão clicado
+      if (event && event.target) {
+        event.target.classList.add('active');
+      } else {
+        // Fallback: procura o botão correspondente
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+          if (btn.textContent.includes(id.replace('tab-', ''))) {
+            btn.classList.add('active');
+          }
+        });
+      }
+    }
+
+    // ============================================
+    // GERAR RELATÓRIO
+    // ============================================
+    async function generateMonthlyReport() {
+      const year = document.getElementById('report-year').value;
+      const month = document.getElementById('report-month').value;
+      if (!year || !month) {
+        showToast('❌ Selecione ano e mês!', 'error');
+        return;
+      }
+
+      try {
+        showToast('⏳ Gerando relatório...', 'warning');
+
+        if (typeof window.api === 'undefined' || !window.api.buscar) {
+          showToast('❌ Banco de dados não disponível', 'error');
+          return;
+        }
+
+        const resultadoVendas = await window.api.buscar('vendas');
+        const resultadoEntradas = await window.api.buscar('caixa_entrada');
+        const resultadoSaidas = await window.api.buscar('caixa_saida');
+        const resultadoContas = await window.api.buscar('contas_pagar');
+
+        const vendas = resultadoVendas.sucesso ? resultadoVendas.dados || [] : [];
+        const entradas = resultadoEntradas.sucesso ? resultadoEntradas.dados || [] : [];
+        const saidas = resultadoSaidas.sucesso ? resultadoSaidas.dados || [] : [];
+        const contas = resultadoContas.sucesso ? resultadoContas.dados || [] : [];
+
+        // Filtra por mês/ano
+        const filtrados = vendas.filter(item => {
+          if (!item.data) return false;
+          const d = new Date(item.data);
+          return d.getFullYear() == year && (d.getMonth() + 1) == month;
+        });
+
+        const entradasFiltradas = entradas.filter(item => {
+          if (!item.data) return false;
+          const d = new Date(item.data);
+          return d.getFullYear() == year && (d.getMonth() + 1) == month;
+        });
+
+        const saidasFiltradas = saidas.filter(item => {
+          if (!item.data) return false;
+          const d = new Date(item.data);
+          return d.getFullYear() == year && (d.getMonth() + 1) == month;
+        });
+        const contasFiltradas = contas.filter(item => {
+          if (!item.vencimento && !item.data) return false;
+          const d = new Date(item.vencimento || item.data);
+          return d.getFullYear() == year && (d.getMonth() + 1) == month && item.status !== 'paga' && item.status !== 'pago';
+        });
+
+        // Atualiza resumo
+        let total = filtrados.length;
+        let faturamento = 0, pecas = 0, extras = 0, lucroEstimado = 0;
+        let statusCount = {};
+        let deviceCount = {};
+
+        filtrados.forEach(item => {
+          faturamento += parseFloat(item.valor) || 0;
+          pecas += parseFloat(item.pecas) || 0;
+          extras += parseFloat(item.extras) || 0;
+          const s = item.status || 'pendente';
+          statusCount[s] = (statusCount[s] || 0) + 1;
+          const d = item.aparelho || 'Outro';
+          deviceCount[d] = (deviceCount[d] || 0) + 1;
+        });
+
+        lucroEstimado = faturamento - pecas - extras;
+
+        document.getElementById('report-result').style.display = 'block';
+        document.getElementById('report-total').textContent = total;
+        document.getElementById('report-revenue').textContent = `R$ ${faturamento.toFixed(2).replace('.', ',')}`;
+        document.getElementById('report-parts').textContent = `R$ ${pecas.toFixed(2).replace('.', ',')}`;
+        document.getElementById('report-extra').textContent = `R$ ${extras.toFixed(2).replace('.', ',')}`;
+        document.getElementById('report-profit').textContent = `R$ ${lucroEstimado.toFixed(2).replace('.', ',')}`;
+        const totalContasPendentes = contasFiltradas.reduce((total, conta) => total + (parseFloat(conta.valor) || 0), 0);
+        document.getElementById('report-payables').textContent = `R$ ${totalContasPendentes.toFixed(2).replace('.', ',')}`;
+        document.getElementById('report-open-services').textContent = filtrados.filter(item => !['concluido', 'entregue', 'cancelado'].includes(item.status)).length;
+
+        // Info do relatório
+        const meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+        document.getElementById('report-info').textContent = `📅 ${meses[parseInt(month)-1]} ${year} - ${total} registros`;
+
+        document.getElementById('report-status').innerHTML = Object.entries(statusCount)
+          .map(([k, v]) => `<div><span class="status-badge status-${k}">${k}</span>: ${v}</div>`).join('') || '<div>Nenhum dado</div>';
+
+        document.getElementById('report-device').innerHTML = Object.entries(deviceCount)
+          .map(([k, v]) => `<div>${k}: ${v}</div>`).join('') || '<div>Nenhum dado</div>';
+
+        // Gráfico de Orçamentos
+        const ctxBudget = document.getElementById('report-budget-chart')?.getContext('2d');
+        if (ctxBudget) {
+          if (reportBudgetChart) reportBudgetChart.destroy();
+          if (Object.keys(statusCount).length > 0) {
+            reportBudgetChart = new Chart(ctxBudget, {
+              type: 'pie',
+              data: {
+                labels: Object.keys(statusCount),
+                datasets: [{
+                  data: Object.values(statusCount),
+                  backgroundColor: ['#f59e0b', '#3b82f6', '#8b5cf6', '#22c55e', '#ef4444', '#14b8a6']
+                }]
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom', labels: { color: '#8899bb' } } }
+              }
+            });
+          } else {
+            reportBudgetChart = new Chart(ctxBudget, {
+              type: 'pie',
+              data: { labels: ['Sem dados'], datasets: [{ data: [1], backgroundColor: ['#2a3344'] }] },
+              options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+            });
+          }
+        }
+
+        // Gráfico de Entradas
+        const ctxIn = document.getElementById('report-cashin-chart')?.getContext('2d');
+        if (ctxIn) {
+          if (reportCashInChart) reportCashInChart.destroy();
+          const porDia = {};
+          entradasFiltradas.forEach(i => { porDia[i.data] = (porDia[i.data] || 0) + Number(i.valor_liquido !== undefined ? i.valor_liquido : (i.venda || 0)); });
+          const dias = Object.keys(porDia).sort();
+          const valores = dias.map(d => porDia[d]);
+          if (dias.length > 0) {
+            reportCashInChart = new Chart(ctxIn, {
+              type: 'bar',
+              data: {
+                labels: dias.map(d => d.slice(5)),
+                datasets: [{ label: 'Entradas', data: valores, backgroundColor: '#22c55e', borderRadius: 6 }]
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, ticks: { color: '#556688' } }, x: { ticks: { color: '#556688' } } }
+              }
+            });
+          } else {
+            reportCashInChart = new Chart(ctxIn, {
+              type: 'bar',
+              data: { labels: ['Sem dados'], datasets: [{ data: [0], backgroundColor: ['#2a3344'] }] },
+              options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+            });
+          }
+        }
+
+        // Gráfico de Saídas
+        const ctxOut = document.getElementById('report-cashout-chart')?.getContext('2d');
+        if (ctxOut) {
+          if (reportCashOutChart) reportCashOutChart.destroy();
+          const porDia = {};
+          saidasFiltradas.filter(i => i.pago !== false && !['pendente', 'vencida', 'cancelada', 'cancelado'].includes(i.status)).forEach(i => { porDia[i.data] = (porDia[i.data] || 0) + (Number(i.valor) || 0); });
+          const dias = Object.keys(porDia).sort();
+          const valores = dias.map(d => porDia[d]);
+          if (dias.length > 0) {
+            reportCashOutChart = new Chart(ctxOut, {
+              type: 'bar',
+              data: {
+                labels: dias.map(d => d.slice(5)),
+                datasets: [{ label: 'Saídas', data: valores, backgroundColor: '#ef4444', borderRadius: 6 }]
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, ticks: { color: '#556688' } }, x: { ticks: { color: '#556688' } } }
+              }
+            });
+          } else {
+            reportCashOutChart = new Chart(ctxOut, {
+              type: 'bar',
+              data: { labels: ['Sem dados'], datasets: [{ data: [0], backgroundColor: ['#2a3344'] }] },
+              options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+            });
+          }
+        }
+
+        showToast('✅ Relatório gerado com sucesso!', 'success');
+
+      } catch (erro) {
+        console.error('Erro:', erro);
+        showToast('❌ Erro ao gerar relatório: ' + erro.message, 'error');
+      }
+    }
+
+    // ============================================
+    // EXPORTAR PDF
+    // ============================================
+    function exportarPDF() {
+      const elemento = document.getElementById('report-result');
+      if (!elemento || elemento.style.display === 'none') {
+        showToast('❌ Gere um relatório primeiro!', 'error');
+        return;
+      }
+
+      showToast('⏳ Gerando PDF...', 'warning');
+
+      const data = new Date().toLocaleDateString('pt-BR');
+      const meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+      const mes = parseInt(document.getElementById('report-month').value);
+      const ano = document.getElementById('report-year').value;
+      const tituloRelatorio = mes ? `${meses[mes-1]} ${ano}` : 'Relatório';
+
+      const conteudoHTML = elemento.outerHTML;
+      const estilos = document.querySelector('style').innerHTML;
+
+      const conteudo = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Relatório SUIT-TECH - ${tituloRelatorio}</title>
+          <style>
+            ${estilos}
+            body { padding: 20px; background: #fff; color: #000; }
+            .panel { background: #fff; border: 1px solid #ddd; }
+            .stat-card { background: #f8f9fa; }
+            .topbar .btn, .topbar .btn-atualizar { display: none !important; }
+            .chart-wrapper { height: 280px; }
+            .no-print { display: none !important; }
+            #report-result { display: block !important; }
+            .tabs .tab-btn { display: none; }
+            .tab-content { display: block !important; }
+            .tab-content.active { display: block !important; }
+            .toolbar { display: none !important; }
+            .chart-wrapper canvas { max-width: 100%; }
+            @media print {
+              body { padding: 10px; }
+              .chart-wrapper { height: 220px; }
+            }
+          </style>
+          <link rel="stylesheet" href="../css/theme.css">
+  <script src="../js/theme.js"></script>
+</head>
+        <body>
+          <div style="text-align:center; margin-bottom:20px; border-bottom: 3px solid #3b82f6; padding-bottom: 15px;">
+            <h1 style="color: #3b82f6; font-size: 28px;">SUIT-TECH</h1>
+            <p style="color: #666;">Assistência Técnica Especializada</p>
+            <p style="color: #999; font-size: 14px;">Relatório - ${tituloRelatorio}</p>
+            <p style="color: #bbb; font-size: 12px;">Gerado em ${data}</p>
+          </div>
+          ${conteudoHTML}
+          <div style="text-align:center; margin-top:30px; color:#999; font-size:11px; border-top:1px solid #ddd; padding-top:15px;">
+            <p>SUIT-TECH - Assistência Técnica | Todos os direitos reservados</p>
+          </div>
+          <script>
+            setTimeout(function() {
+              window.print();
+            }, 1500);
+          <\/script>
+        </body>
+        </html>
+      `;
+
+      const win = window.open('', '_blank', 'width=1200,height=800');
+      if (win) {
+        win.document.write(conteudo);
+        win.document.close();
+      } else {
+        showToast('❌ Permita pop-ups do navegador!', 'error');
+      }
+    }
+
+    // ============================================
+    // IMPRIMIR RELATÓRIO
+    // ============================================
+    function imprimirRelatorio() {
+      const elemento = document.getElementById('report-result');
+      if (!elemento || elemento.style.display === 'none') {
+        showToast('❌ Gere um relatório primeiro!', 'error');
+        return;
+      }
+
+      showToast('🖨️ Preparando impressão...', 'warning');
+
+      const data = new Date().toLocaleDateString('pt-BR');
+      const meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+      const mes = parseInt(document.getElementById('report-month').value);
+      const ano = document.getElementById('report-year').value;
+      const tituloRelatorio = mes ? `${meses[mes-1]} ${ano}` : 'Relatório';
+
+      const conteudoHTML = elemento.outerHTML;
+      const estilos = document.querySelector('style').innerHTML;
+
+      const conteudo = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Relatório SUIT-TECH - ${tituloRelatorio}</title>
+          <style>
+            ${estilos}
+            body { padding: 15px; background: #fff; color: #000; }
+            .panel { background: #fff; border: 1px solid #ddd; }
+            .stat-card { background: #f8f9fa; }
+            .topbar .btn, .topbar .btn-atualizar { display: none !important; }
+            .chart-wrapper { height: 220px; }
+            .no-print { display: none !important; }
+            #report-result { display: block !important; }
+            .tabs .tab-btn { display: none; }
+            .tab-content { display: block !important; }
+            .tab-content.active { display: block !important; }
+            .toolbar { display: none !important; }
+            .chart-wrapper canvas { max-width: 100%; }
+            .stats-grid { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+            @media print {
+              body { padding: 10px; }
+              .chart-wrapper { height: 180px; }
+            }
+          </style>
+          <link rel="stylesheet" href="../css/theme.css">
+  <script src="../js/theme.js"></script>
+</head>
+        <body>
+          <div style="text-align:center; margin-bottom:15px; border-bottom: 2px solid #3b82f6; padding-bottom: 12px;">
+            <h1 style="color: #3b82f6; font-size: 24px;">SUIT-TECH</h1>
+            <p style="color: #666;">Assistência Técnica - ${tituloRelatorio}</p>
+            <p style="color: #999; font-size: 12px;">Gerado em ${data}</p>
+          </div>
+          ${conteudoHTML}
+          <div style="text-align:center; margin-top:20px; color:#999; font-size:10px; border-top:1px solid #ddd; padding-top:12px;">
+            <p>SUIT-TECH - Assistência Técnica</p>
+          </div>
+          <script>
+            setTimeout(function() {
+              window.print();
+            }, 1000);
+          <\/script>
+        </body>
+        </html>
+      `;
+
+      const win = window.open('', '_blank', 'width=1100,height=700');
+      if (win) {
+        win.document.write(conteudo);
+        win.document.close();
+      } else {
+        showToast('❌ Permita pop-ups do navegador!', 'error');
+      }
+    }
+
+    // ============================================
+    // INICIALIZAÇÃO
+    // ============================================
+    document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('report-year').value = new Date().getFullYear();
+      document.getElementById('report-month').value = String(new Date().getMonth() + 1);
+    });
+
+    // ============================================
+    // EXPOSIÇÃO GLOBAL
+    // ============================================
+    window.showTab = showTab;
+    window.generateMonthlyReport = generateMonthlyReport;
+    window.exportarPDF = exportarPDF;
+    window.imprimirRelatorio = imprimirRelatorio;
+    window.showToast = showToast;
+    window.fazerLogout = fazerLogout;
+  </script>
+
+  <script src="../js/carregarMenu.js"></script>
+
+  <script src="../js/glitter.js"></script>
+</body>
+</html>

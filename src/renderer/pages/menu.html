@@ -1,0 +1,63 @@
+﻿<!-- menu.html - Menu com submenus expansíveis -->
+<nav class="menu-dropdown">
+  <a href="index.html" class="menu-item">📊 Dashboard</a>
+
+  <!-- Grupo Operacional -->
+  <div class="menu-group">
+    <div class="menu-group-title" onclick="toggleGroup(this)">
+      <span>👥 Operacional</span>
+      <span class="arrow">▶</span>
+    </div>
+    <div class="menu-group-items">
+      <a href="novo-atendimento.html">⚡ Novo Atendimento</a>
+      <a href="clientes.html">👥 Clientes</a>
+      <a href="orcamentos.html">📋 Orçamentos</a>
+      <a href="agendamentos.html">📅 Agendamentos</a>
+      <a href="devolucoes.html">🔄 Devoluções</a>
+      <a href="estoque.html">📦 Estoque</a>
+    </div>
+  </div>
+
+  <!-- Grupo Financeiro -->
+  <div class="menu-group">
+    <div class="menu-group-title" onclick="toggleGroup(this)">
+      <span>💰 Financeiro</span>
+      <span class="arrow">▶</span>
+    </div>
+    <div class="menu-group-items">
+      <a href="caixa-entrada.html">💰 Caixa Entrada</a>
+      <a href="caixa-saida.html">💸 Caixa Saída</a>
+      <a href="contas-pagar.html">📄 Contas a Pagar</a>
+      <a href="valores-receber.html">💰 Valores a Receber</a>    
+    </div>
+  </div>
+
+  <!-- Grupo Gestão -->
+  <div class="menu-group">
+    <div class="menu-group-title" onclick="toggleGroup(this)">
+      <span>📈 Gestão</span>
+      <span class="arrow">▶</span>
+    </div>
+    <div class="menu-group-items">
+      <a href="relatorios.html">📊 Relatórios</a>
+      <a href="auditoria.html">📋 Auditoria</a>
+	  <a href="contas.html">🏦 Contas</a>
+      <a href="categorias.html">📂 Categorias</a>
+      <a href="fornecedores.html">📦 Fornecedores</a>
+    </div>
+  </div>
+
+  <!-- Grupo Sistema -->
+  <div class="menu-group">
+    <div class="menu-group-title" onclick="toggleGroup(this)">
+      <span>⚙️ Sistema</span>
+      <span class="arrow">▶</span>
+    </div>
+    <div class="menu-group-items">
+      <a href="ferramentas.html">🛠️ Ferramentas</a>
+      <a href="backup-automatico.html">💾 Backup Automático</a>
+      <a href="usuarios.html">👤 Usuários</a>
+      <a href="sobre.html">📄 Sobre</a>
+    </div>
+  </div>
+</nav>

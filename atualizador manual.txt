@@ -1,0 +1,4 @@
+git add .
+git commit -m "Descrição da alteração"
+npm.cmd version patch -m "Publica versao %s"
+git push origin main --tags

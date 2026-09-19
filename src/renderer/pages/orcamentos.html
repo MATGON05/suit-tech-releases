@@ -1,0 +1,1524 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Orçamentos - SUIT-TECH</title>
+  <!-- CSS GLOBAL (tema laranja/cinza) -->
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/tema-novo-overrides.css">
+  <script>
+    // Verificação de sessão
+    (function() {
+      const sessao = localStorage.getItem('sessao_suittech');
+      if (!sessao) { window.location.href = 'login.html'; return; }
+      try {
+        const dados = JSON.parse(sessao);
+        if (!dados.logado) { window.location.href = 'login.html'; return; }
+      } catch (e) { window.location.href = 'login.html'; }
+    })();
+  </script>
+  <style>
+    /* Estilos para os botões de cliente inline */
+    .cliente-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .cliente-actions .btn-salvar-cliente {
+      display: none;
+    }
+    .cliente-actions .btn-salvar-cliente.visible {
+      display: inline-flex;
+    }
+    .cliente-actions .btn-novo-cliente.hidden {
+      display: none;
+    }
+    /* Garantia visual dos botões desta tela, inclusive os gerados na tabela */
+    .cliente-actions .btn,
+    .actions .btn,
+    .assinatura-actions-modal .btn,
+    .fotos-dropdown-menu button {
+      border: 0;
+      cursor: pointer;
+      font-family: inherit;
+      font-weight: 600;
+      transition: var(--transition);
+    }
+    .cliente-actions .btn:disabled,
+    .actions .btn:disabled,
+    .assinatura-actions-modal .btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+    .actions {
+      text-align: right;
+      vertical-align: middle;
+    }
+    .actions > .btn,
+    .actions > .fotos-dropdown {
+      display: inline-flex;
+      vertical-align: middle;
+      margin: 2px;
+    }
+    .fotos-dropdown {
+      position: relative;
+    }
+    .fotos-dropdown-menu {
+      display: none;
+      position: absolute;
+      right: 0;
+      top: calc(100% + 4px);
+      min-width: 180px;
+      padding: 5px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      box-shadow: var(--shadow);
+      z-index: 200;
+    }
+    .fotos-dropdown-menu.open {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .fotos-dropdown-menu button {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      padding: 8px 10px;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--text-secondary);
+      text-align: left;
+      font-size: 12px;
+    }
+    .fotos-dropdown-menu button:hover {
+      background: var(--surface-2);
+      color: var(--text);
+    }
+  </style>
+  <link rel="stylesheet" href="../css/theme.css">
+  <script src="../js/theme.js"></script>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <span class="logo"><img src="../assets/logo.png" alt="SUIT-TECH"></span>
+        <div>
+          <h1>SUIT-TECH</h1>
+          <small>Assistência Técnica</small>
+        </div>
+      </div>
+      <!-- Menu dinâmico -->
+      <div id="menu-container"></div>
+      <footer class="sidebar-footer">
+        <span>Rodando local</span>
+        <br>
+        <button onclick="fazerLogout()" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:12px;margin-top:8px;">🚪 Sair</button>
+      </footer>
+    </aside>
+
+    <main class="content">
+      <header class="topbar">
+        <div class="topbar-left">
+          <h2>📋 Orçamentos</h2>
+          <span style="color:var(--text-muted);font-size:13px;margin-left:8px;" id="total-orcamentos">0 orçamentos</span>
+        </div>
+        <div class="topbar-right">
+          <button class="btn btn-primary" onclick="openBudgetModalUnificado()">+ Novo Orçamento</button>
+          <button class="btn btn-purple" onclick="abrirModelosWhatsApp()">⚙️ Mensagens</button>
+          <button class="btn btn-success" onclick="atualizarTudo()">🔄 Atualizar</button>
+        </div>
+      </header>
+
+      <section class="panel">
+        <div class="toolbar">
+          <input type="text" id="search-budget" placeholder="🔍 Buscar por cliente..." oninput="renderBudgets()">
+          <select id="filter-status" onchange="renderBudgets()">
+            <option value="">Todos os status</option>
+            <option value="pendente">Pendente</option>
+            <option value="aprovado">Aprovado</option>
+            <option value="em-reparo">Em Reparo</option>
+            <option value="concluido">Concluído</option>
+            <option value="entregue">Entregue</option>
+            <option value="cancelado">Cancelado</option>
+          </select>
+          <select id="filter-pagamento" onchange="renderBudgets()">
+            <option value="">Todos</option>
+            <option value="pago">✅ Pago</option>
+            <option value="nao_pago">❌ Não Pago</option>
+          </select>
+          <span style="color:var(--text-muted);font-size:12px;" id="budget-count">0</span>
+          <button class="btn btn-sm btn-purple" onclick="exportarOrcamentosCSV()" style="font-size:12px;">📥 CSV</button>
+        </div>
+
+        <div class="table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>OS</th><th>Data</th><th>Cliente</th><th>Aparelho</th><th>Defeito</th>
+                <th>Valor</th><th>Status</th><th>Pagto</th><th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="budgets-table">
+              <tr><td colspan="9" class="empty">Carregando...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="modelos-whatsapp-modal" class="modal">
+    <div class="modal-content" style="max-width:760px;">
+      <div class="modal-header"><h3>⚙️ Modelos de Mensagens WhatsApp</h3><button class="close" onclick="fecharModelosWhatsApp()">&times;</button></div>
+      <p style="color:var(--text-muted);font-size:12px;margin-bottom:12px;">Você pode usar: {cliente}, {os}, {valor}, {servico} e {validade}.</p>
+      <div class="form-group"><label>Agradecimento</label><textarea id="modelo-agradecimento" rows="4"></textarea></div>
+      <div class="form-group"><label>Garantia</label><textarea id="modelo-garantia" rows="4"></textarea></div>
+      <div class="form-group"><label>Equipamento pronto</label><textarea id="modelo-pronto" rows="3"></textarea></div>
+      <div class="modal-footer"><button class="btn" onclick="fecharModelosWhatsApp()">Cancelar</button><button class="btn btn-primary" onclick="salvarModelosWhatsApp()">💾 Salvar modelos</button></div>
+    </div>
+  </div>
+
+  <div id="contato-cliente-modal" class="modal">
+    <div class="modal-content" style="max-width:620px;">
+      <div class="modal-header"><h3>💬 Contatar cliente</h3><button class="close" onclick="fecharContatoCliente()">&times;</button></div>
+      <p id="contato-cliente-destino" style="color:var(--text-muted);font-size:12px;margin-bottom:12px;"></p>
+      <div class="form-group"><label>Mensagem</label><textarea id="contato-cliente-mensagem" rows="7" placeholder="Digite a mensagem que deseja enviar ao cliente..."></textarea></div>
+      <div class="modal-footer"><button class="btn" onclick="fecharContatoCliente()">Cancelar</button><button class="btn btn-success" onclick="enviarContatoCliente()">📤 Enviar pelo WhatsApp</button></div>
+    </div>
+  </div>
+
+  <!-- MODAL UNIFICADO -->
+  <div id="budget-modal-unificado" class="modal">
+    <div class="modal-content modal-unificado">
+      <div class="modal-header">
+        <h3 id="budget-modal-title">📋 Novo Orçamento</h3>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <span id="os-number-display" style="color:var(--text-muted);font-size:13px;"></span>
+          <button class="close" onclick="closeBudgetModalUnificado()">&times;</button>
+        </div>
+      </div>
+      <form id="budget-form-unificado" onsubmit="saveBudgetUnificado(event)">
+        <input type="hidden" id="budget-id-unificado">
+        <!-- Seção Cliente -->
+        <div class="secao secao-cliente">
+          <div class="secao-titulo">
+            👤 Dados do Cliente
+            <span class="badge-secao">Obrigatório</span>
+            <div class="cliente-actions">
+              <button type="button" class="btn btn-primary btn-sm btn-novo-cliente" onclick="prepararNovoClienteInline()">➕ Novo Cliente</button>
+              <button type="button" class="btn btn-success btn-sm btn-salvar-cliente" onclick="salvarClienteInline()">💾 Salvar Cliente</button>
+            </div>
+          </div>
+          <div class="form-grid">
+            <div class="form-group span-2">
+              <label>Selecione o Cliente</label>
+              <select id="budget-cliente-select-unificado" style="flex:1;" onchange="preencherDadosClienteUnificado()">
+                <option value="">Selecione um cliente...</option>
+              </select>
+            </div>
+            <div class="form-group span-2">
+              <label>Nome do Cliente *</label>
+              <input type="text" id="budget-client-unificado" required placeholder="Digite o nome do cliente">
+            </div>
+            <div class="form-group">
+              <label>Telefone *</label>
+              <input type="text" id="budget-telefone-unificado" required placeholder="(00) 00000-0000">
+            </div>
+            <div class="form-group">
+              <label>E-mail</label>
+              <input type="email" id="budget-email-unificado" placeholder="email@exemplo.com">
+            </div>
+            <div class="form-group">
+              <label>CPF *</label>
+              <input type="text" id="budget-cpf-unificado" required placeholder="000.000.000-00">
+            </div>
+            <div class="form-group">
+              <label>Endereço *</label>
+              <input type="text" id="budget-endereco-unificado" required placeholder="Rua, número, bairro, cidade">
+            </div>
+          </div>
+        </div>
+        <!-- Seção Equipamento -->
+        <div class="secao secao-equipamento">
+          <div class="secao-titulo">📱 Dados do Equipamento <span class="badge-secao">Obrigatório</span></div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Tipo de Aparelho *</label>
+              <select id="budget-device-unificado" required>
+                <option value="">Selecione</option>
+                <option>Celular</option><option>Notebook</option><option>Video Game</option><option>Tablet</option><option>Outro</option>
+              </select>
+            </div>
+            <div class="form-group"><label>Marca</label><input type="text" id="budget-brand-unificado"></div>
+            <div class="form-group"><label>Modelo</label><input type="text" id="budget-model-unificado"></div>
+            <div class="form-group"><label>Nº de Série</label><input type="text" id="budget-serial-unificado"></div>
+            <div class="form-group"><label>Cor do Equipamento</label><input type="text" id="budget-cor-unificado" list="cores-equipamento" placeholder="Ex: Preto, Azul, Branco"></div>
+            <datalist id="cores-equipamento">
+              <option value="Preto"><option value="Branco"><option value="Cinza"><option value="Prata">
+              <option value="Dourado"><option value="Azul"><option value="Vermelho"><option value="Verde">
+              <option value="Rosa"><option value="Roxo"><option value="Amarelo"><option value="Outro">
+            </datalist>
+            <div class="form-group span-2">
+              <label>🔍 Marcas de Uso</label>
+              <textarea id="budget-marcas-uso-unificado" rows="2"></textarea>
+            </div>
+          </div>
+        </div>
+        <!-- Seção Serviço -->
+        <div class="secao secao-servico">
+          <div class="secao-titulo">🛠️ Dados do Serviço <span class="badge-secao">Obrigatório</span></div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Status</label>
+              <select id="budget-status-unificado">
+                <option value="pendente">Pendente</option>
+                <option value="aprovado">Aprovado</option>
+                <option value="em-reparo">Em Reparo</option>
+                <option value="concluido">Concluído</option>
+                <option value="entregue">Entregue</option>
+                <option value="cancelado">Cancelado</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Pagamento</label>
+              <select id="budget-pagamento-unificado">
+                <option value="nao_pago">❌ Não Pago</option>
+                <option value="pago">✅ Pago</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Mão de obra / Serviço (R$) *</label>
+              <input type="number" step="0.01" id="budget-labor-unificado" required oninput="calcularLucroUnificado()">
+            </div>
+            <div class="form-group">
+              <label>Custo das Peças (R$)</label>
+              <input type="number" step="0.01" id="budget-parts-cost-unificado" readonly oninput="calcularLucroUnificado()">
+            </div>
+            <div class="form-group">
+              <label>Total Cobrado (R$)</label>
+              <input type="number" step="0.01" id="budget-value-unificado" readonly style="background:var(--surface-3);font-weight:bold;">
+            </div>
+            <div class="form-group">
+              <label>Custos Extras (R$)</label>
+              <input type="number" step="0.01" id="budget-extra-cost-unificado" oninput="calcularLucroUnificado()">
+            </div>
+            <div class="form-group">
+              <label>Lucro Estimado (R$)</label>
+              <input type="text" id="budget-lucro-unificado" readonly style="background:var(--surface-3);color:var(--gold);font-weight:bold;">
+            </div>
+            <div class="form-group span-2">
+              <label>Defeito / Solicitação</label>
+              <textarea id="budget-problem-unificado" rows="2"></textarea>
+            </div>
+            <div class="form-group span-2">
+              <label>🛠️ Serviço Executado</label>
+              <textarea id="budget-servico-unificado" rows="2" placeholder="Descreva o serviço realizado ou a realizar"></textarea>
+            </div>
+            <div class="form-group span-2">
+              <label>📦 Peças utilizadas <small style="color:var(--text-muted);">(baixa ao concluir)</small></label>
+              <div id="orcamento-pecas-lista"></div>
+              <button type="button" class="btn btn-sm btn-purple" onclick="adicionarPecaOrcamento()">➕ Adicionar peça</button>
+            </div>
+            <div class="form-group span-2">
+              <label>Diagnóstico / Observações</label>
+              <textarea id="budget-diagnosis-unificado" rows="2"></textarea>
+            </div>
+          </div>
+        </div>
+        <!-- Seção Assinatura -->
+        <div class="secao secao-assinatura">
+          <div class="secao-titulo">
+            ✍️ Assinatura Digital
+            <span class="badge-secao">Opcional</span>
+            <span class="assinatura-status-modal" id="assinatura-status-modal">
+              <span class="check">✅</span>
+              <span id="assinatura-status-text-modal">Nenhuma assinatura</span>
+            </span>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:10px;">
+            <div class="canvas-wrapper-modal">
+              <canvas id="assinatura-modal-canvas" width="500" height="120"></canvas>
+            </div>
+            <div class="assinatura-actions-modal">
+              <button type="button" class="btn btn-danger btn-sm" onclick="limparAssinaturaModalUnificado()">🗑️ Limpar</button>
+              <button type="button" class="btn btn-success btn-sm" onclick="salvarAssinaturaModalUnificado()">💾 Salvar</button>
+              <button type="button" class="btn btn-primary btn-sm" onclick="baixarAssinaturaModalUnificado()">📥 PNG</button>
+              <button type="button" class="btn btn-warning btn-sm" onclick="carregarAssinaturaModalUnificado()">📂 Carregar</button>
+            </div>
+            <div class="assinatura-preview-modal" id="assinatura-preview-modal" style="display:none;">
+              <span style="font-size:12px;color:var(--text-muted);">✍️ Assinatura:</span>
+              <img id="assinatura-modal-preview-img" alt="Assinatura">
+              <span style="font-size:11px;color:var(--success);">✅ Salva</span>
+            </div>
+            <input type="hidden" id="budget-assinatura-unificado" value="">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn" onclick="closeBudgetModalUnificado()">Cancelar</button>
+          <button type="submit" class="btn btn-primary">💾 Salvar Orçamento</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL CLIENTE RÁPIDO (mantido para compatibilidade, mas não será usado) -->
+  <div id="cliente-rapido-modal" class="modal" style="display:none;">
+    <div class="modal-content" style="max-width:550px;">
+      <div class="modal-header">
+        <h3>➕ Novo Cliente Rápido</h3>
+        <button class="close" onclick="fecharClienteRapido()">&times;</button>
+      </div>
+      <form id="cliente-rapido-form" onsubmit="salvarClienteRapido(event)">
+        <div class="form-grid">
+          <div class="form-group span-2"><label>Nome *</label><input type="text" id="cliente-rapido-nome" required></div>
+          <div class="form-group"><label>Telefone *</label><input type="text" id="cliente-rapido-telefone" required></div>
+          <div class="form-group"><label>E-mail</label><input type="email" id="cliente-rapido-email"></div>
+          <div class="form-group"><label>CPF *</label><input type="text" id="cliente-rapido-cpf" required></div>
+          <div class="form-group span-2"><label>Endereço *</label><input type="text" id="cliente-rapido-endereco" required></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn" onclick="fecharClienteRapido()">Cancelar</button>
+          <button type="submit" class="btn btn-primary">💾 Salvar e Selecionar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- TOAST -->
+  <div id="toast" class="toast"></div>
+
+  <!-- SCRIPTS -->
+  <script src="../js/api.js"></script>
+  <script src="../js/app.js"></script>
+  <script>
+    // ============================================
+    // TOAST
+    // ============================================
+    function showToast(mensagem, tipo = 'success') {
+      const toast = document.getElementById('toast');
+      if (!toast) return;
+      toast.textContent = mensagem;
+      toast.className = 'toast toast-' + tipo;
+      setTimeout(() => toast.classList.add('show'), 100);
+      setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+
+    function fazerLogout() {
+      if (confirm('Deseja realmente sair?')) {
+        localStorage.removeItem('sessao_suittech');
+        window.location.href = 'login.html';
+      }
+    }
+
+    // ============================================
+    // VARIÁVEIS GLOBAIS
+    // ============================================
+    let budgetsCache = [];
+    let clientsCache = [];
+    let assinaturaDataModal = null;
+    let canvasModalUnificado = null;
+
+    // ============================================
+    // CARREGAR CLIENTES
+    // ============================================
+    async function carregarClientes() {
+      try {
+        if (typeof window.api === 'undefined' || !window.api.buscar) {
+          clientsCache = [];
+          return;
+        }
+        const resultado = await window.api.buscar('clientes');
+        if (resultado.sucesso) {
+          clientsCache = resultado.dados || [];
+          popularSelectClientesUnificado();
+        }
+      } catch (erro) {
+        console.error('Erro ao carregar clientes:', erro);
+        clientsCache = [];
+      }
+    }
+
+    function popularSelectClientesUnificado(selectedValue = '') {
+      const select = document.getElementById('budget-cliente-select-unificado');
+      if (!select) return;
+      select.innerHTML = '';
+      const opt = document.createElement('option');
+      opt.value = '';
+      opt.textContent = 'Selecione um cliente...';
+      select.appendChild(opt);
+      clientsCache.forEach(c => {
+        const option = document.createElement('option');
+        option.value = c._id;
+        option.textContent = `${c.nome}${c.telefone ? ' - ' + c.telefone : ''}`;
+        option.dataset.nome = c.nome || '';
+        option.dataset.telefone = c.telefone || '';
+        option.dataset.email = c.email || '';
+        option.dataset.cpf = c.cpf || '';
+        option.dataset.endereco = c.endereco || '';
+        if (c._id === selectedValue) option.selected = true;
+        select.appendChild(option);
+      });
+    }
+
+    function preencherDadosClienteUnificado() {
+      const select = document.getElementById('budget-cliente-select-unificado');
+      if (!select) return;
+      const selectedOption = select.options[select.selectedIndex];
+      if (!selectedOption || !selectedOption.value) {
+        document.getElementById('budget-client-unificado').value = '';
+        document.getElementById('budget-telefone-unificado').value = '';
+        document.getElementById('budget-email-unificado').value = '';
+        document.getElementById('budget-cpf-unificado').value = '';
+        document.getElementById('budget-endereco-unificado').value = '';
+        return;
+      }
+      document.getElementById('budget-client-unificado').value = selectedOption.dataset.nome || '';
+      document.getElementById('budget-telefone-unificado').value = selectedOption.dataset.telefone || '';
+      document.getElementById('budget-email-unificado').value = selectedOption.dataset.email || '';
+      document.getElementById('budget-cpf-unificado').value = selectedOption.dataset.cpf || '';
+      document.getElementById('budget-endereco-unificado').value = selectedOption.dataset.endereco || '';
+    }
+
+    // ============================================
+    // CRIAR CLIENTE INLINE (SEM MODAL)
+    // ============================================
+    function prepararNovoClienteInline() {
+      // Limpa os campos de cliente
+      document.getElementById('budget-client-unificado').value = '';
+      document.getElementById('budget-telefone-unificado').value = '';
+      document.getElementById('budget-email-unificado').value = '';
+      document.getElementById('budget-cpf-unificado').value = '';
+      document.getElementById('budget-endereco-unificado').value = '';
+      // Foca no nome
+      document.getElementById('budget-client-unificado').focus();
+      // Mostra o botão "Salvar Cliente" e esconde o "Novo Cliente"
+      document.querySelector('.btn-salvar-cliente').classList.add('visible');
+      document.querySelector('.btn-novo-cliente').classList.add('hidden');
+      // Desmarca o select
+      document.getElementById('budget-cliente-select-unificado').value = '';
+    }
+
+    async function salvarClienteInline() {
+      const nome = document.getElementById('budget-client-unificado').value.trim();
+      const telefone = document.getElementById('budget-telefone-unificado').value.trim();
+      const email = document.getElementById('budget-email-unificado').value.trim();
+      const cpf = document.getElementById('budget-cpf-unificado').value.trim();
+      const endereco = document.getElementById('budget-endereco-unificado').value.trim();
+      const btnSalvar = document.querySelector('.btn-salvar-cliente');
+
+      if (!nome || !telefone || !cpf || !endereco) {
+        showToast('❌ Nome, Telefone, CPF e Endereço são obrigatórios!', 'error');
+        return;
+      }
+      if (typeof window.api === 'undefined' || !window.api.salvar) {
+        showToast('❌ Banco de dados não disponível', 'error');
+        return;
+      }
+
+      const body = { nome, telefone, email, cpf, endereco };
+      if (btnSalvar) {
+        btnSalvar.disabled = true;
+        btnSalvar.textContent = '⏳ Salvando...';
+      }
+
+      try {
+        const resultado = await window.api.salvar('clientes', body);
+        if (resultado.sucesso) {
+          showToast('✅ Cliente criado com sucesso!', 'success');
+          // Recarrega a lista de clientes
+          await carregarClientes();
+          // Seleciona o novo cliente no select
+          const novoCliente = resultado.dados || body;
+          const novoId = novoCliente._id;
+          popularSelectClientesUnificado(novoId || '');
+          preencherDadosClienteUnificado();
+          // Volta os botões ao estado normal
+          document.querySelector('.btn-salvar-cliente').classList.remove('visible');
+          document.querySelector('.btn-novo-cliente').classList.remove('hidden');
+        } else {
+          showToast('❌ Erro: ' + resultado.erro, 'error');
+        }
+      } catch (erro) {
+        console.error('Erro:', erro);
+        showToast('❌ Erro: ' + erro.message, 'error');
+      } finally {
+        if (btnSalvar) {
+          btnSalvar.disabled = false;
+          btnSalvar.textContent = '💾 Salvar Cliente';
+        }
+      }
+    }
+
+    // ============================================
+    // CARREGAR ORÇAMENTOS
+    // ============================================
+    async function loadBudgets() {
+      try {
+        if (typeof window.api === 'undefined' || !window.api.buscar) {
+          budgetsCache = [];
+          renderBudgets();
+          return;
+        }
+        const resultado = await window.api.buscar('vendas');
+        if (resultado.sucesso) {
+          budgetsCache = resultado.dados || [];
+          renderBudgets();
+          document.getElementById('total-orcamentos').textContent = `${budgetsCache.length} orçamentos`;
+        } else {
+          budgetsCache = [];
+          renderBudgets();
+        }
+      } catch (erro) {
+        console.error('Erro ao carregar orçamentos:', erro);
+        budgetsCache = [];
+        renderBudgets();
+      }
+    }
+
+    // ============================================
+    // RENDERIZAR ORÇAMENTOS
+    // ============================================
+    function renderBudgets() {
+      const q = document.getElementById('search-budget')?.value.toLowerCase() || '';
+      const status = document.getElementById('filter-status')?.value || '';
+      const pagamento = document.getElementById('filter-pagamento')?.value || '';
+      const tbody = document.getElementById('budgets-table');
+      const countEl = document.getElementById('budget-count');
+      if (!tbody) return;
+
+      const filtered = budgetsCache.filter(b => {
+        const matchSearch = (b.cliente || '').toLowerCase().includes(q) || (b.aparelho || '').toLowerCase().includes(q);
+        const matchStatus = status ? b.status === status : true;
+        const matchPagamento = pagamento ? b.pagamento === pagamento : true;
+        return matchSearch && matchStatus && matchPagamento;
+      });
+
+      if (countEl) countEl.textContent = `${filtered.length} filtrados`;
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="9" class="empty">Nenhum orçamento encontrado</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = filtered.map(b => {
+        const data = b.data ? new Date(b.data).toLocaleDateString('pt-BR') : '-';
+        const pagamentoStatus = b.pagamento === 'pago' ? '✅' : '❌';
+        const pagamentoClass = b.pagamento === 'pago' ? 'status-concluido' : 'status-pendente';
+        const osNome = b.os || b._id || 'OS-' + b._id?.slice(-4);
+        const temAssinatura = b.assinatura ? true : false;
+        const cancelado = String(b.status || '').toLowerCase() === 'cancelado';
+
+        return `
+          <tr>
+            <td>${b.os || b._id?.slice(-4) || '-'}</td>
+            <td>${data}</td>
+            <td><strong>${b.cliente || '-'}</strong></td>
+            <td>${b.aparelho || '-'}</td>
+            <td>${b.defeito || '-'}</td>
+            <td style="color:var(--gold);font-weight:600;">R$ ${(parseFloat(b.valor)||0).toFixed(2).replace('.',',')}</td>
+            <td><span class="status-badge status-${b.status||'pendente'}">${b.status||'Pendente'}</span></td>
+            <td><span class="status-badge ${pagamentoClass}">${pagamentoStatus}</span></td>
+            <td class="actions" style="position:relative;white-space:nowrap;">
+              <button class="btn btn-primary" onclick="editBudgetUnificado('${b._id}')" style="padding:3px 8px;font-size:10px;" title="Editar cliente/orçamento">✏️</button>
+              ${!cancelado ? (b.pagamento === 'pago' ? '<span class="status-badge status-concluido" title="Pagamento já lançado no caixa">💰 Recebido</span>' : `<button class="btn btn-success" onclick="receberPagamentoOrcamento('${b._id}')" style="padding:3px 8px;font-size:10px;" title="Receber pagamento e lançar no Caixa Entrada">💰 Receber</button>`) : ''}
+              <button class="btn btn-success" onclick="enviarOrcamentoWhatsApp('${b._id}')" style="padding:3px 8px;font-size:10px;" title="WhatsApp">📤</button>
+              <button class="btn btn-success" onclick="enviarAgradecimentoOrcamento('${b._id}')" style="padding:3px 8px;font-size:10px;" title="Enviar agradecimento">🙏</button>
+              <button class="btn btn-success" onclick="enviarEquipamentoPronto('${b._id}')" style="padding:3px 8px;font-size:10px;" title="Informar equipamento pronto">✅</button>
+              <button class="btn btn-primary" onclick="abrirContatoCliente('${b._id}')" style="padding:3px 8px;font-size:10px;" title="Contatar cliente">💬</button>
+              <div class="fotos-dropdown">
+                <button class="btn btn-primary" onclick="toggleFotosDropdown('${b._id}')" style="padding:3px 8px;font-size:10px;" title="Fotos">📸</button>
+                <div class="fotos-dropdown-menu" id="fotos-dropdown-${b._id}">
+                  <button onclick="tirarFoto('${b._id}','${osNome}')"><span class="icon">📸</span> Tirar Foto</button>
+                  <button onclick="verImagens('${b._id}','${osNome}')"><span class="icon">🖼️</span> Ver Imagens</button>
+                  <button onclick="abrirPastaAnexos('${osNome}')"><span class="icon">📂</span> Abrir Pasta</button>
+                </div>
+              </div>
+              ${temAssinatura ? `<span title="Com assinatura" style="font-size:13px;">✍️</span>` : ''}
+              <button class="btn btn-warning" onclick="enviarGarantiaOrcamento('${b._id}')" style="padding:3px 8px;font-size:10px;" title="Enviar garantia de 90 dias">🛡️</button>
+              <button class="btn btn-purple" onclick="imprimirOrcamento('${b._id}')" style="padding:3px 8px;font-size:10px;" title="Imprimir">🖨️</button>
+              <button class="btn btn-danger" onclick="deleteBudget('${b._id}')" style="padding:3px 8px;font-size:10px;" title="Excluir">🗑️</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // ============================================
+    // WHATSAPP - FUNÇÕES
+    // ============================================
+    let contatoClienteAtualId = null;
+
+    async function enviarEquipamentoPronto(id) {
+      const orcamento = budgetsCache.find(b => b._id === id);
+      if (!orcamento) { showToast('❌ Orçamento não encontrado', 'error'); return; }
+      const cliente = clientsCache.find(c => c.nome === orcamento.cliente);
+      const telefone = cliente?.telefone || orcamento.telefone || '';
+      if (!telefone) { showToast('❌ Cliente sem telefone!', 'error'); return; }
+      const resultado = await window.api?.mensagensBuscar?.();
+      const modelo = resultado?.dados?.pronto || '✅ *EQUIPAMENTO PRONTO — SUIT-TECH*\n\nOlá, {cliente}!\n\nInformamos que seu equipamento referente à OS *{os}* está pronto para retirada.\n\nAgradecemos a confiança e aguardamos você em nossa loja.\n\n🛠️ *SUIT-TECH — Assistência Técnica*';
+      const mensagem = aplicarModeloWhatsApp(modelo, { cliente: orcamento.cliente || 'cliente', os: orcamento.os || orcamento._id?.slice(-4) || 'Não informada', valor: `R$ ${(parseFloat(orcamento.valor)||0).toFixed(2).replace('.', ',')}`, servico: orcamento.servico || '' });
+      enviarWhatsApp(telefone, mensagem);
+    }
+
+    function abrirContatoCliente(id) {
+      const orcamento = budgetsCache.find(b => b._id === id);
+      if (!orcamento) { showToast('❌ Orçamento não encontrado', 'error'); return; }
+      contatoClienteAtualId = id;
+      const cliente = clientsCache.find(c => c.nome === orcamento.cliente);
+      document.getElementById('contato-cliente-destino').textContent = `Cliente: ${orcamento.cliente || '-'} | OS: ${orcamento.os || orcamento._id?.slice(-4) || '-'}`;
+      document.getElementById('contato-cliente-mensagem').value = '';
+      document.getElementById('contato-cliente-modal').classList.add('open');
+      document.getElementById('contato-cliente-mensagem').focus();
+    }
+
+    function fecharContatoCliente() {
+      contatoClienteAtualId = null;
+      document.getElementById('contato-cliente-modal').classList.remove('open');
+    }
+
+    function enviarContatoCliente() {
+      const orcamento = budgetsCache.find(b => b._id === contatoClienteAtualId);
+      const mensagem = document.getElementById('contato-cliente-mensagem').value.trim();
+      if (!orcamento || !mensagem) { showToast('❌ Digite uma mensagem antes de enviar.', 'error'); return; }
+      const cliente = clientsCache.find(c => c.nome === orcamento.cliente);
+      const telefone = cliente?.telefone || orcamento.telefone || '';
+      if (!telefone) { showToast('❌ Cliente sem telefone!', 'error'); return; }
+      enviarWhatsApp(telefone, mensagem);
+      fecharContatoCliente();
+    }
+
+    async function abrirModelosWhatsApp() {
+      const resultado = await window.api?.mensagensBuscar?.();
+      const modelos = resultado?.dados || {};
+      document.getElementById('modelo-agradecimento').value = modelos.agradecimento || '';
+      document.getElementById('modelo-garantia').value = modelos.garantia || '';
+      document.getElementById('modelo-pronto').value = modelos.pronto || '';
+      document.getElementById('modelos-whatsapp-modal').classList.add('open');
+    }
+
+    function fecharModelosWhatsApp() {
+      document.getElementById('modelos-whatsapp-modal').classList.remove('open');
+    }
+
+    async function salvarModelosWhatsApp() {
+      const modelos = {
+        agradecimento: document.getElementById('modelo-agradecimento').value.trim(),
+        garantia: document.getElementById('modelo-garantia').value.trim(),
+        pronto: document.getElementById('modelo-pronto').value.trim()
+      };
+      const resultado = await window.api?.mensagensSalvar?.(modelos);
+      if (resultado?.sucesso) {
+        fecharModelosWhatsApp();
+        showToast('✅ Modelos de WhatsApp salvos!', 'success');
+      } else showToast('❌ Não foi possível salvar os modelos.', 'error');
+    }
+
+    function aplicarModeloWhatsApp(modelo, dados) {
+      return String(modelo || '').replace(/\{(cliente|os|valor|servico|validade)\}/g, (_, chave) => dados[chave] || '');
+    }
+
+    async function enviarWhatsApp(numero, mensagem) {
+      const numeroLimpo = numero.replace(/\D/g, '');
+      if (numeroLimpo.length < 10) { showToast('❌ Número inválido!', 'error'); return; }
+      const msgCodificada = encodeURIComponent(mensagem);
+      let numeroCompleto = numeroLimpo;
+      if (!numeroLimpo.startsWith('55') && numeroLimpo.length <= 11) {
+        numeroCompleto = '55' + numeroLimpo;
+      }
+      const appUrl = `whatsapp://send?phone=${numeroCompleto}&text=${msgCodificada}`;
+      const webUrl = `https://wa.me/${numeroCompleto}?text=${msgCodificada}`;
+      try {
+        if (window.electron?.abrirWhatsAppDesktop) {
+          const resultado = await window.electron.abrirWhatsAppDesktop(appUrl);
+          if (resultado?.sucesso) { showToast('📱 WhatsApp Desktop a ser aberto...', 'success'); return; }
+        }
+      } catch (erro) { console.error('WhatsApp Desktop:', erro); }
+      window.open(webUrl, '_blank');
+      showToast('📤 WhatsApp Web a ser aberto...', 'success');
+    }
+
+    function enviarOrcamentoWhatsApp(id) {
+      const orcamento = budgetsCache.find(b => b._id === id);
+      if (!orcamento) { showToast('❌ Orçamento não encontrado', 'error'); return; }
+      const cliente = clientsCache.find(c => c.nome === orcamento.cliente);
+      const telefone = cliente?.telefone || orcamento.telefone || '';
+      if (!telefone) { showToast('❌ Cliente sem telefone!', 'error'); return; }
+      let mensagem = `📋 *ORÇAMENTO SUIT-TECH*\n\n*OS: ${orcamento.os || orcamento._id?.slice(-4) || 'Não informada'}*\n👤 Cliente: ${orcamento.cliente}\n🪪 CPF: ${orcamento.cpf||'Não informado'}\n📱 Aparelho: ${orcamento.aparelho||'Não informado'}\n🏷️ Marca: ${orcamento.marca||'Não informada'}\n🔖 Modelo: ${orcamento.modelo||'Não informado'}\n🎨 Cor: ${orcamento.cor||'Não informada'}\n📌 Status: ${orcamento.status||'Pendente'}\n💰 Valor: R$ ${(parseFloat(orcamento.valor)||0).toFixed(2).replace('.',',')}\n\n`;
+      if (orcamento.servico) mensagem += `🛠️ Serviço: ${orcamento.servico}\n\n`;
+      if (orcamento.defeito) mensagem += `🔧 Defeito relatado pelo cliente: ${orcamento.defeito}\n\n`;
+      if (orcamento.diagnostico) mensagem += `📋 Diagnóstico: ${orcamento.diagnostico}\n\n`;
+      mensagem += `✅ Aguardamos sua confirmação.\n🛠️ *SUIT-TECH*`;
+      enviarWhatsApp(telefone, mensagem);
+    }
+
+    async function enviarAgradecimentoOrcamento(id) {
+      const orcamento = budgetsCache.find(b => b._id === id);
+      if (!orcamento) { showToast('❌ Orçamento não encontrado', 'error'); return; }
+      const cliente = clientsCache.find(c => c.nome === orcamento.cliente);
+      const telefone = cliente?.telefone || orcamento.telefone || '';
+      if (!telefone) { showToast('❌ Cliente sem telefone!', 'error'); return; }
+      const nome = (orcamento.cliente || 'cliente').trim().split(/\s+/)[0];
+      const resultado = await window.api?.mensagensBuscar?.();
+      const modelo = resultado?.dados?.agradecimento || '🙏 *AGRADECIMENTO SUIT-TECH*\n\nOlá, {cliente}!\n\nAgradecemos por escolher a SUIT-TECH e pela confiança em nosso trabalho. Confirmamos o recebimento do seu pagamento/compra referente à OS *{os}*.\n\nFoi um prazer atender você. Seja muito bem-vindo(a) à nossa loja! Permanecemos à disposição sempre que precisar.\n\nAtenciosamente,\n🛠️ *SUIT-TECH*';
+      const mensagem = aplicarModeloWhatsApp(modelo, { cliente: nome, os: orcamento.os || orcamento._id?.slice(-4) || 'Não informada', valor: `R$ ${(parseFloat(orcamento.valor)||0).toFixed(2).replace('.', ',')}`, servico: orcamento.servico || '' });
+      enviarWhatsApp(telefone, mensagem);
+    }
+
+    async function enviarGarantiaOrcamento(id) {
+      const orcamento = budgetsCache.find(b => b._id === id);
+      if (!orcamento) { showToast('❌ Orçamento não encontrado', 'error'); return; }
+      if (orcamento.status !== 'concluido' && orcamento.status !== 'entregue') {
+        showToast('⚠️ Apenas serviços concluídos!', 'warning');
+        return;
+      }
+      const cliente = clientsCache.find(c => c.nome === orcamento.cliente);
+      const telefone = cliente?.telefone || orcamento.telefone || '';
+      if (!telefone) { showToast('❌ Cliente sem telefone!', 'error'); return; }
+      const dataGarantia = new Date();
+      dataGarantia.setDate(dataGarantia.getDate() + 90);
+      const resultado = await window.api?.mensagensBuscar?.();
+      const modelo = resultado?.dados?.garantia || '🛡️ *TERMO DE GARANTIA — SUIT-TECH*\n\nOlá, {cliente}!\n\nInformamos que a OS *{os}* possui garantia de 90 dias, válida até *{validade}*. Agradecemos a confiança e permanecemos à disposição.';
+      const mensagem = aplicarModeloWhatsApp(modelo, { cliente: orcamento.cliente || 'cliente', os: orcamento.os || orcamento._id?.slice(-4) || 'Não informada', validade: dataGarantia.toLocaleDateString('pt-BR'), servico: orcamento.servico || '' });
+      enviarWhatsApp(telefone, mensagem);
+      showToast('🛡️ Garantia enviada!', 'success');
+    }
+
+    // ============================================
+    // FOTOS - DROPDOWN
+    // ============================================
+    function toggleFotosDropdown(id) {
+      const menu = document.getElementById(`fotos-dropdown-${id}`);
+      if (menu) menu.classList.toggle('open');
+    }
+    document.addEventListener('click', function(e) {
+      if (!e.target.closest('.fotos-dropdown')) {
+        document.querySelectorAll('.fotos-dropdown-menu').forEach(el => el.classList.remove('open'));
+      }
+    });
+
+    // ============================================
+    // FOTOS - FUNÇÕES (com window.electron)
+    // ============================================
+    function fecharCamera() {
+      const modal = document.getElementById('camera-modal-instance');
+      if (modal) {
+        const video = modal.querySelector('video');
+        if (video && video.srcObject) video.srcObject.getTracks().forEach(t => t.stop());
+        modal.remove();
+      }
+    }
+    function fecharGaleria() {
+      const modal = document.getElementById('galeria-modal');
+      if (modal) modal.remove();
+    }
+
+    async function tirarFoto(id, os) {
+      try {
+        document.querySelectorAll('.fotos-dropdown-menu').forEach(el => el.classList.remove('open'));
+        const orcamento = budgetsCache.find(b => b._id === id);
+        if (!orcamento) { showToast('❌ Orçamento não encontrado!', 'error'); return; }
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'environment' }, audio: false });
+        const modal = document.createElement('div');
+        modal.className = 'camera-modal';
+        modal.id = 'camera-modal-instance';
+        modal.innerHTML = `
+          <div class="camera-box">
+            <div class="camera-header"><h3>📸 Tirar Foto</h3><button class="close-btn" onclick="fecharCamera()">✖</button></div>
+            <div class="camera-preview"><video id="camera-preview" autoplay playsinline></video><canvas id="camera-canvas" style="display:none;"></canvas></div>
+            <div class="camera-actions"><button class="btn btn-danger" onclick="fecharCamera()">Cancelar</button><button class="btn btn-success" id="btn-tirar-foto">📸 Tirar Foto</button></div>
+            <div class="camera-info">OS: <strong>${os}</strong> | ${orcamento.cliente}</div>
+          </div>
+        `;
+        document.body.appendChild(modal);
+        const videoEl = modal.querySelector('#camera-preview');
+        videoEl.srcObject = stream;
+        await videoEl.play();
+        modal.querySelector('#btn-tirar-foto').onclick = async function() {
+          const canvas = modal.querySelector('#camera-canvas');
+          canvas.width = videoEl.videoWidth || 1280;
+          canvas.height = videoEl.videoHeight || 720;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+          fecharCamera();
+          if (typeof window.electron !== 'undefined' && window.electron.salvarFoto) {
+            const resultado = await window.electron.salvarFoto(os, dataUrl);
+            showToast(resultado.sucesso ? '✅ Foto salva!' : '❌ Erro ao salvar foto', resultado.sucesso ? 'success' : 'error');
+          } else {
+            showToast('❌ API de fotos não disponível', 'error');
+          }
+        };
+      } catch (erro) {
+        console.error('Erro:', erro);
+        fecharCamera();
+        showToast('❌ Erro ao abrir câmera: ' + erro.message, 'error');
+      }
+    }
+
+    async function verImagens(id, os) {
+      try {
+        document.querySelectorAll('.fotos-dropdown-menu').forEach(el => el.classList.remove('open'));
+        const orcamento = budgetsCache.find(b => b._id === id);
+        if (!orcamento) { showToast('❌ Orçamento não encontrado!', 'error'); return; }
+        let fotos = [];
+        if (typeof window.electron !== 'undefined' && window.electron.listarFotos) {
+          const resultado = await window.electron.listarFotos(os);
+          if (resultado.sucesso) fotos = resultado.fotos || [];
+          else { showToast('❌ ' + resultado.erro, 'error'); return; }
+        } else {
+          showToast('❌ API de fotos não disponível', 'error');
+          return;
+        }
+        const modal = document.createElement('div');
+        modal.id = 'galeria-modal';
+        modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;overflow-y:auto;';
+        let imagensHtml = fotos.length === 0 ?
+          `<div style="text-align:center;padding:40px;color:var(--text-muted);font-size:16px;">📭 Nenhuma foto</div>` :
+          fotos.map(f => `
+            <div class="gallery-item">
+              <img src="file://${f.caminho}" alt="${f.nome}" loading="lazy" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%22 height=%22100%22><text y=%22.9em%22 font-size=%2290%22>🖼️</text></svg>'">
+              <div class="overlay">
+                <button onclick="baixarFoto('${f.caminho}','${f.nome}')">📥</button>
+                <button onclick="deletarFoto('${os}','${f.nome}','${id}')" style="background:rgba(239,68,68,0.8);">🗑️</button>
+              </div>
+              <div class="name">${f.nome}</div>
+            </div>
+          `).join('');
+        modal.innerHTML = `
+          <div style="background:var(--surface);border-radius:var(--radius);padding:16px;max-width:850px;width:100%;max-height:90vh;overflow-y:auto;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+              <h3 style="color:var(--text);margin:0;font-size:16px;">🖼️ ${orcamento.cliente}</h3>
+              <button onclick="fecharGaleria()" style="background:none;border:none;color:var(--text);font-size:22px;cursor:pointer;">✖</button>
+            </div>
+            <div class="gallery-grid">${imagensHtml}</div>
+            <div style="margin-top:10px;text-align:center;color:var(--text-muted);font-size:12px;">${fotos.length} foto${fotos.length!==1?'s':''}</div>
+          </div>
+        `;
+        document.body.appendChild(modal);
+      } catch (erro) {
+        console.error('Erro:', erro);
+        showToast('❌ ' + erro.message, 'error');
+      }
+    }
+
+    async function deletarFoto(os, nome, orcamentoId) {
+      if (!confirm(`🗑️ Excluir "${nome}"?`)) return;
+      if (typeof window.electron !== 'undefined' && window.electron.deletarFoto) {
+        const resultado = await window.electron.deletarFoto(os, nome);
+        if (resultado.sucesso) {
+          showToast('✅ Foto excluída!', 'success');
+          verImagens(orcamentoId, os);
+        } else {
+          showToast('❌ ' + resultado.erro, 'error');
+        }
+      } else {
+        showToast('❌ API de fotos não disponível', 'error');
+      }
+    }
+
+    function baixarFoto(caminho, nome) {
+      const link = document.createElement('a');
+      link.href = `file://${caminho}`;
+      link.download = nome;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      showToast('📥 Download!', 'success');
+    }
+
+    async function abrirPastaAnexos(os) {
+      try {
+        document.querySelectorAll('.fotos-dropdown-menu').forEach(el => el.classList.remove('open'));
+        if (typeof window.electron !== 'undefined' && window.electron.abrirPastaAnexos) {
+          const resultado = await window.electron.abrirPastaAnexos(os);
+          showToast(resultado.sucesso ? '📂 Pasta aberta!' : '❌ ' + resultado.erro, resultado.sucesso ? 'success' : 'error');
+        } else {
+          showToast('❌ API não disponível', 'error');
+        }
+      } catch (erro) {
+        showToast('❌ ' + erro.message, 'error');
+      }
+    }
+
+    // ============================================
+    // ASSINATURA
+    // ============================================
+    function initAssinaturaModalUnificado() {
+      const canvas = document.getElementById('assinatura-modal-canvas');
+      if (!canvas) return null;
+      const ctx = canvas.getContext('2d');
+      ctx.strokeStyle = '#1a1a2e';
+      ctx.lineWidth = 2.5;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      let drawing = false, lastX = 0, lastY = 0;
+      function start(e) {
+        drawing = true;
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        lastX = (clientX - rect.left) * scaleX;
+        lastY = (clientY - rect.top) * scaleY;
+      }
+      function draw(e) {
+        if (!drawing) return;
+        e.preventDefault();
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        const currentX = (clientX - rect.left) * scaleX;
+        const currentY = (clientY - rect.top) * scaleY;
+        ctx.beginPath();
+        ctx.moveTo(lastX, lastY);
+        ctx.lineTo(currentX, currentY);
+        ctx.stroke();
+        lastX = currentX;
+        lastY = currentY;
+      }
+      function stop() { drawing = false; }
+      canvas.addEventListener('mousedown', start);
+      canvas.addEventListener('mousemove', draw);
+      canvas.addEventListener('mouseup', stop);
+      canvas.addEventListener('mouseleave', stop);
+      canvas.addEventListener('touchstart', start, { passive: false });
+      canvas.addEventListener('touchmove', draw, { passive: false });
+      canvas.addEventListener('touchend', stop, { passive: false });
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.strokeStyle = '#1a1a2e';
+      ctx.lineWidth = 2.5;
+      return {
+        canvas, ctx,
+        clear: () => {
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.strokeStyle = '#1a1a2e';
+          ctx.lineWidth = 2.5;
+        },
+        getDataURL: () => canvas.toDataURL('image/png')
+      };
+    }
+
+    function limparAssinaturaModalUnificado() {
+      if (canvasModalUnificado) {
+        canvasModalUnificado.clear();
+        assinaturaDataModal = null;
+        document.getElementById('assinatura-status-text-modal').textContent = 'Nenhuma assinatura';
+        document.getElementById('assinatura-status-modal').querySelector('.check').style.display = 'none';
+        document.getElementById('assinatura-preview-modal').style.display = 'none';
+        document.getElementById('budget-assinatura-unificado').value = '';
+        showToast('🗑️ Assinatura limpa!', 'warning');
+      }
+    }
+    function salvarAssinaturaModalUnificado() {
+      if (!canvasModalUnificado) return;
+      const dataURL = canvasModalUnificado.getDataURL();
+      if (dataURL) {
+        assinaturaDataModal = dataURL;
+        document.getElementById('budget-assinatura-unificado').value = dataURL;
+        document.getElementById('assinatura-status-text-modal').textContent = '✅ Assinada';
+        document.getElementById('assinatura-status-modal').querySelector('.check').style.display = 'inline';
+        document.getElementById('assinatura-preview-modal').style.display = 'flex';
+        document.getElementById('assinatura-modal-preview-img').src = dataURL;
+        showToast('✅ Assinatura salva no orçamento!', 'success');
+      }
+    }
+    function carregarAssinaturaModalUnificado() {
+      const saved = localStorage.getItem('assinatura_suittech');
+      if (saved && canvasModalUnificado) {
+        const img = new Image();
+        img.onload = function() {
+          canvasModalUnificado.ctx.fillStyle = '#ffffff';
+          canvasModalUnificado.ctx.fillRect(0, 0, canvasModalUnificado.canvas.width, canvasModalUnificado.canvas.height);
+          canvasModalUnificado.ctx.drawImage(img, 0, 0, canvasModalUnificado.canvas.width, canvasModalUnificado.canvas.height);
+          assinaturaDataModal = saved;
+          document.getElementById('budget-assinatura-unificado').value = saved;
+          document.getElementById('assinatura-status-text-modal').textContent = '✅ Carregada';
+          document.getElementById('assinatura-status-modal').querySelector('.check').style.display = 'inline';
+          document.getElementById('assinatura-preview-modal').style.display = 'flex';
+          document.getElementById('assinatura-modal-preview-img').src = saved;
+          showToast('✅ Assinatura carregada!', 'success');
+        };
+        img.src = saved;
+      } else {
+        showToast('❌ Nenhuma assinatura salva!', 'error');
+      }
+    }
+    function baixarAssinaturaModalUnificado() {
+      if (!canvasModalUnificado) return;
+      const dataURL = canvasModalUnificado.getDataURL();
+      if (dataURL) {
+        const link = document.createElement('a');
+        link.href = dataURL;
+        link.download = `assinatura_${new Date().toISOString().slice(0,10)}.png`;
+        link.click();
+        showToast('📥 Assinatura baixada!', 'success');
+      }
+    }
+
+    // ============================================
+    // ORÇAMENTOS - MODAL UNIFICADO
+    // ============================================
+    async function adicionarPecaOrcamento(peca = null) {
+      const lista = document.getElementById('orcamento-pecas-lista');
+      if (!lista) return;
+      const resultado = await window.api?.produtosBuscar?.();
+      const produtos = resultado?.dados || [];
+      if (!produtos.length) { showToast('⚠️ Cadastre produtos no estoque antes de vincular peças.', 'warning'); return; }
+      const linha = document.createElement('div');
+      linha.className = 'orcamento-peca-linha';
+      linha.style.cssText = 'display:flex;gap:8px;align-items:center;margin:6px 0;';
+      linha.innerHTML = `<select class="orcamento-peca-produto" style="flex:1;"><option value="">Selecione a peça...</option>${produtos.map(p => `<option value="${p._id}" data-venda="${p.preco_venda || 0}" data-custo="${p.preco_custo || 0}" ${peca?.produto_id === p._id ? 'selected' : ''}>${p.nome} (estoque: ${p.quantidade || 0})</option>`).join('')}</select><input class="orcamento-peca-qtd" type="number" min="1" value="${peca?.quantidade || 1}" style="width:65px;" title="Quantidade" oninput="calcularLucroUnificado()"><input class="orcamento-peca-venda" type="number" step="0.01" min="0" value="${peca?.preco_venda || 0}" style="width:85px;" title="Preço cobrado por unidade" oninput="calcularLucroUnificado()"><input class="orcamento-peca-custo" type="number" step="0.01" min="0" value="${peca?.preco_custo || 0}" style="width:85px;" title="Custo por unidade" oninput="calcularLucroUnificado()"><button type="button" class="btn btn-danger btn-sm" onclick="this.parentElement.remove();calcularLucroUnificado()">🗑️</button>`;
+      const select = linha.querySelector('.orcamento-peca-produto');
+      select.addEventListener('change', () => { const o=select.selectedOptions[0]; linha.querySelector('.orcamento-peca-venda').value=o?.dataset.venda||0; linha.querySelector('.orcamento-peca-custo').value=o?.dataset.custo||0; calcularLucroUnificado(); });
+      lista.appendChild(linha);
+      calcularLucroUnificado();
+    }
+
+    function obterPecasOrcamento() {
+      return [...document.querySelectorAll('#orcamento-pecas-lista .orcamento-peca-linha')].map(linha => ({
+        produto_id: linha.querySelector('.orcamento-peca-produto')?.value || '',
+        nome: linha.querySelector('.orcamento-peca-produto')?.selectedOptions[0]?.textContent?.split(' (estoque')[0] || '',
+        quantidade: Math.max(1, parseInt(linha.querySelector('.orcamento-peca-qtd')?.value || '1', 10)),
+        preco_venda: parseFloat(linha.querySelector('.orcamento-peca-venda')?.value || '0') || 0,
+        preco_custo: parseFloat(linha.querySelector('.orcamento-peca-custo')?.value || '0') || 0
+      })).filter(peca => peca.produto_id);
+    }
+
+    async function baixarPecasAoConcluir(orcamento) {
+      if (orcamento.status !== 'concluido' || orcamento.status_anterior === 'concluido' || orcamento.pecas_baixadas) return { sucesso: true };
+      const estoque = await window.api?.produtosBuscar?.();
+      const produtos = estoque?.dados || [];
+      for (const peca of (orcamento.pecas_usadas || [])) {
+        const produto = produtos.find(item => item._id === peca.produto_id);
+        if (!produto) return { sucesso: false, erro: 'Uma das peças selecionadas não existe mais no estoque.' };
+        if ((produto.quantidade || 0) < peca.quantidade) return { sucesso: false, erro: `Estoque insuficiente para ${produto.nome}.` };
+      }
+      for (const peca of (orcamento.pecas_usadas || [])) {
+        const resultado = await window.api?.movimentarEstoque?.(peca.produto_id, peca.quantidade, 'saida', `OS ${orcamento.os || orcamento._id} - serviço concluído`, orcamento.clienteId || '');
+        if (!resultado?.sucesso) return resultado || { sucesso: false, erro: 'Não foi possível baixar uma peça.' };
+      }
+      return { sucesso: true };
+    }
+
+    function calcularLucroUnificado() {
+      const maoObra = parseFloat(document.getElementById('budget-labor-unificado')?.value) || 0;
+      const e = parseFloat(document.getElementById('budget-extra-cost-unificado')?.value) || 0;
+      const pecas = obterPecasOrcamento();
+      const vendaPecas = pecas.reduce((t,p) => t + p.preco_venda * p.quantidade, 0);
+      const custoPecas = pecas.reduce((t,p) => t + p.preco_custo * p.quantidade, 0);
+      const total = maoObra + vendaPecas + e;
+      document.getElementById('budget-parts-cost-unificado').value = custoPecas.toFixed(2);
+      document.getElementById('budget-value-unificado').value = total.toFixed(2);
+      document.getElementById('budget-lucro-unificado').value = (total - custoPecas - e).toFixed(2);
+    }
+
+    function openBudgetModalUnificado(budget = null) {
+      const modal = document.getElementById('budget-modal-unificado');
+      document.getElementById('budget-modal-title').textContent = budget ? '✏️ Editar Orçamento' : '📋 Novo Orçamento';
+      document.getElementById('budget-id-unificado').value = budget ? budget._id : '';
+      document.getElementById('os-number-display').textContent = 'OS: ' + (budget ? (budget.os || budget._id?.slice(-4)) : 'OS-' + Date.now().toString().slice(-4));
+      if (budget && budget.clienteId) popularSelectClientesUnificado(budget.clienteId);
+      else popularSelectClientesUnificado();
+      preencherDadosClienteUnificado();
+      document.getElementById('budget-device-unificado').value = budget ? budget.aparelho : '';
+      document.getElementById('budget-brand-unificado').value = budget ? budget.marca || '' : '';
+      document.getElementById('budget-model-unificado').value = budget ? budget.modelo || '' : '';
+      document.getElementById('budget-serial-unificado').value = budget ? budget.serie || '' : '';
+      document.getElementById('budget-cor-unificado').value = budget ? budget.cor || '' : '';
+      document.getElementById('budget-marcas-uso-unificado').value = budget ? budget.marcasUso || '' : '';
+      document.getElementById('budget-status-unificado').value = budget ? budget.status : 'pendente';
+      document.getElementById('budget-pagamento-unificado').value = budget ? budget.pagamento || 'nao_pago' : 'nao_pago';
+      document.getElementById('budget-labor-unificado').value = budget ? (budget.mao_obra ?? budget.valor ?? '') : '';
+      document.getElementById('budget-value-unificado').value = budget ? budget.valor || '' : '';
+      document.getElementById('budget-parts-cost-unificado').value = budget ? budget.pecas || '' : '';
+      document.getElementById('budget-extra-cost-unificado').value = budget ? budget.extras || '' : '';
+      document.getElementById('budget-problem-unificado').value = budget ? budget.defeito || '' : '';
+      document.getElementById('budget-servico-unificado').value = budget ? budget.servico || '' : '';
+      document.getElementById('budget-diagnosis-unificado').value = budget ? budget.diagnostico || '' : '';
+      document.getElementById('orcamento-pecas-lista').innerHTML = '';
+      (budget?.pecas_usadas || []).forEach(peca => adicionarPecaOrcamento(peca));
+      if (budget && budget.assinatura) {
+        document.getElementById('budget-assinatura-unificado').value = budget.assinatura;
+        document.getElementById('assinatura-status-text-modal').textContent = '✅ Anexada';
+        document.getElementById('assinatura-status-modal').querySelector('.check').style.display = 'inline';
+        document.getElementById('assinatura-preview-modal').style.display = 'flex';
+        document.getElementById('assinatura-modal-preview-img').src = budget.assinatura;
+        if (canvasModalUnificado) {
+          const img = new Image();
+          img.onload = function() {
+            canvasModalUnificado.ctx.fillStyle = '#ffffff';
+            canvasModalUnificado.ctx.fillRect(0, 0, canvasModalUnificado.canvas.width, canvasModalUnificado.canvas.height);
+            canvasModalUnificado.ctx.drawImage(img, 0, 0, canvasModalUnificado.canvas.width, canvasModalUnificado.canvas.height);
+          };
+          img.src = budget.assinatura;
+        }
+      } else {
+        document.getElementById('budget-assinatura-unificado').value = '';
+        document.getElementById('assinatura-status-text-modal').textContent = 'Nenhuma assinatura';
+        document.getElementById('assinatura-status-modal').querySelector('.check').style.display = 'none';
+        document.getElementById('assinatura-preview-modal').style.display = 'none';
+        if (canvasModalUnificado) canvasModalUnificado.clear();
+      }
+      calcularLucroUnificado();
+      modal.classList.add('open');
+      setTimeout(() => {
+        canvasModalUnificado = initAssinaturaModalUnificado();
+        const saved = document.getElementById('budget-assinatura-unificado').value;
+        if (saved && canvasModalUnificado) {
+          const img = new Image();
+          img.onload = function() {
+            canvasModalUnificado.ctx.fillStyle = '#ffffff';
+            canvasModalUnificado.ctx.fillRect(0, 0, canvasModalUnificado.canvas.width, canvasModalUnificado.canvas.height);
+            canvasModalUnificado.ctx.drawImage(img, 0, 0, canvasModalUnificado.canvas.width, canvasModalUnificado.canvas.height);
+          };
+          img.src = saved;
+        }
+      }, 200);
+      // Garantir que os botões estejam no estado padrão
+      document.querySelector('.btn-salvar-cliente').classList.remove('visible');
+      document.querySelector('.btn-novo-cliente').classList.remove('hidden');
+    }
+
+    function closeBudgetModalUnificado() {
+      document.getElementById('budget-modal-unificado').classList.remove('open');
+      canvasModalUnificado = null;
+    }
+
+    async function saveBudgetUnificado(e) {
+      e.preventDefault();
+      const id = document.getElementById('budget-id-unificado').value;
+      const clienteId = document.getElementById('budget-cliente-select-unificado').value;
+      const cliente = clientsCache.find(c => c._id === clienteId);
+      const pagamentoStatus = document.getElementById('budget-pagamento-unificado').value;
+      const valor = parseFloat(document.getElementById('budget-value-unificado').value) || 0;
+      const orçamentoAnterior = id ? budgetsCache.find(item => item._id === id) : null;
+      if (!clienteId) { showToast('❌ Selecione um cliente!', 'error'); return; }
+      const body = {
+        cliente: cliente ? cliente.nome : document.getElementById('budget-client-unificado').value.trim(),
+        clienteId: clienteId || null,
+        telefone: cliente ? cliente.telefone : document.getElementById('budget-telefone-unificado').value.trim(),
+        email: cliente ? cliente.email : document.getElementById('budget-email-unificado').value.trim(),
+        cpf: cliente ? cliente.cpf : document.getElementById('budget-cpf-unificado').value.trim(),
+        endereco: cliente ? cliente.endereco : document.getElementById('budget-endereco-unificado').value.trim(),
+        aparelho: document.getElementById('budget-device-unificado').value,
+        status: document.getElementById('budget-status-unificado').value,
+        marca: document.getElementById('budget-brand-unificado').value.trim(),
+        modelo: document.getElementById('budget-model-unificado').value.trim(),
+        serie: document.getElementById('budget-serial-unificado').value.trim(),
+        cor: document.getElementById('budget-cor-unificado').value.trim(),
+        valor: valor,
+        mao_obra: parseFloat(document.getElementById('budget-labor-unificado').value) || 0,
+        pecas: parseFloat(document.getElementById('budget-parts-cost-unificado').value) || 0,
+        extras: parseFloat(document.getElementById('budget-extra-cost-unificado').value) || 0,
+        lucro: parseFloat(document.getElementById('budget-lucro-unificado').value) || 0,
+        pagamento: pagamentoStatus,
+        defeito: document.getElementById('budget-problem-unificado').value.trim(),
+        servico: document.getElementById('budget-servico-unificado').value.trim(),
+        pecas_usadas: obterPecasOrcamento(),
+        pecas_baixadas: orçamentoAnterior?.pecas_baixadas || false,
+        diagnostico: document.getElementById('budget-diagnosis-unificado').value.trim(),
+        marcasUso: document.getElementById('budget-marcas-uso-unificado').value.trim(),
+        assinatura: document.getElementById('budget-assinatura-unificado').value || null,
+        data: new Date().toISOString(),
+        os: 'OS-' + Date.now().toString().slice(-4)
+      };
+      const statusAnterior = orçamentoAnterior?.status;
+      body.historico_status = Array.isArray(orçamentoAnterior?.historico_status) ? [...orçamentoAnterior.historico_status] : [];
+      if (!statusAnterior || statusAnterior !== body.status) {
+        body.historico_status.push({
+          de: statusAnterior || null,
+          para: body.status,
+          em: new Date().toISOString(),
+          usuario: window.suitSessaoAtual?.().nome || 'Sistema'
+        });
+      }
+      if (!body.cliente || !body.aparelho) {
+        showToast('❌ Cliente e Aparelho são obrigatórios!', 'error');
+        return;
+      }
+      try {
+        let resultado;
+        if (id) {
+          resultado = await window.api.atualizar('vendas', id, body);
+        } else {
+          resultado = await window.api.salvar('vendas', body);
+        }
+        if (resultado.sucesso) {
+          const orcamentoId = id || resultado.dados._id;
+          const baixa = await baixarPecasAoConcluir({ ...body, _id: orcamentoId, status_anterior: statusAnterior });
+          if (baixa.sucesso && body.status === 'concluido' && body.pecas_usadas.length && !body.pecas_baixadas) {
+            body.pecas_baixadas = true;
+            await window.api.atualizar('vendas', orcamentoId, body);
+          } else if (!baixa.sucesso) {
+            showToast(`⚠️ Orçamento salvo, mas as peças não foram baixadas: ${baixa.erro || 'verifique o estoque.'}`, 'warning');
+          }
+          if (pagamentoStatus === 'pago') {
+            await registrarPagamentoOrcamento(body, orcamentoId);
+          }
+          closeBudgetModalUnificado();
+          showToast('✅ Orçamento salvo com sucesso!', 'success');
+          await loadBudgets();
+          await carregarClientes();
+        } else {
+          showToast('❌ Erro: ' + resultado.erro, 'error');
+        }
+      } catch (erro) {
+        console.error('Erro:', erro);
+        showToast('❌ Erro: ' + erro.message, 'error');
+      }
+    }
+
+    async function registrarPagamentoOrcamento(body, orcamentoId) {
+      const entradas = await window.api.buscar('caixa_entrada');
+      if (entradas.dados?.some(e => e.orcamentoId === orcamentoId && e.status !== 'cancelado')) return { sucesso: true, existente: true };
+      const pecas = body.pecas_usadas || [];
+      const custoPecas = pecas.reduce((t,p) => t + (Number(p.preco_custo)||0) * (Number(p.quantidade)||0), 0);
+      const vendaPecas = pecas.reduce((t,p) => t + (Number(p.preco_venda)||0) * (Number(p.quantidade)||0), 0);
+      return window.api.salvar('caixa_entrada', {
+        data: new Date().toISOString().split('T')[0], tipo: 'servico',
+        descricao: `ORÇAMENTO ${body.os || orcamentoId}: ${body.cliente} - ${body.aparelho}`,
+        venda: Number(body.valor)||0, valor_liquido: Number(body.valor)||0,
+        custo: custoPecas + (Number(body.extras)||0), lucro: (Number(body.valor)||0) - custoPecas - (Number(body.extras)||0),
+        valor_mao_obra: Number(body.mao_obra)||0, valor_pecas: vendaPecas, custo_pecas: custoPecas,
+        quantidade_pecas: pecas.reduce((t,p)=>t+(Number(p.quantidade)||0),0), itens: pecas,
+        cliente_id: body.clienteId || '', cliente_nome: body.cliente || '', forma_pagamento: 'não informado',
+        observacao: 'Pagamento recebido pelo botão do orçamento', orcamentoId, status: 'confirmado'
+      });
+    }
+    async function receberPagamentoOrcamento(id) {
+      const b = budgetsCache.find(x => x._id === id);
+      if (!b) return showToast('❌ Orçamento não encontrado', 'error');
+      if (String(b.status || '').toLowerCase() === 'cancelado') return showToast('❌ Não é possível receber um orçamento cancelado.', 'error');
+      if (b.pagamento === 'pago') return showToast('ℹ️ Este pagamento já foi recebido.', 'warning');
+      const valor = Number(b.valor)||0;
+      if (!confirm(`Receber R$ ${valor.toFixed(2).replace('.', ',')} de ${b.cliente || 'cliente'} e lançar no Caixa Entrada?`)) return;
+      const entrada = await registrarPagamentoOrcamento({ ...b, pagamento: 'pago' }, id);
+      if (!entrada?.sucesso) return showToast('❌ Erro ao lançar no caixa: ' + (entrada?.erro || 'desconhecido'), 'error');
+      const atualizado = await window.api.atualizar('vendas', id, { ...b, pagamento: 'pago', data_pagamento: new Date().toISOString() });
+      if (!atualizado?.sucesso) return showToast('⚠️ Entrada criada, mas não foi possível atualizar o orçamento.', 'warning');
+      showToast('✅ Pagamento recebido e lançado no Caixa Entrada!', 'success');
+      await loadBudgets();
+    }
+    async function editBudgetUnificado(id) {
+      const b = budgetsCache.find(x => x._id === id);
+      if (b) openBudgetModalUnificado(b);
+      else showToast('❌ Orçamento não encontrado', 'error');
+    }
+
+    async function deleteBudget(id) {
+      if (!confirm('Excluir este orçamento?')) return;
+      try {
+        const resultado = await window.api.deletar('vendas', id);
+        if (resultado.sucesso) {
+          showToast('✅ Orçamento excluído!', 'success');
+          await loadBudgets();
+        } else {
+          showToast('❌ Erro: ' + resultado.erro, 'error');
+        }
+      } catch (erro) {
+        console.error('Erro:', erro);
+        showToast('❌ Erro: ' + erro.message, 'error');
+      }
+    }
+
+    function imprimirOrcamento(id) {
+      const orcamento = budgetsCache.find(b => b._id === id);
+      if (!orcamento) { showToast('❌ Orçamento não encontrado', 'error'); return; }
+      const statusMap = { 'pendente':'Pendente','aprovado':'Aprovado','em-reparo':'Em Reparo','concluido':'Concluído','entregue':'Entregue','cancelado':'Cancelado' };
+      const statusText = statusMap[orcamento.status] || orcamento.status || 'Pendente';
+      const statusClass = orcamento.status || 'pendente';
+      const temAssinatura = orcamento.assinatura ? true : false;
+      const conteudo = `<!DOCTYPE html><html><head><title>Orçamento - SUIT-TECH</title><style>
+        @page{size:58mm auto;margin:0}
+        *{margin:0;padding:0;box-sizing:border-box;font-weight:700!important}
+        html,body{margin:0;background:#fff;width:58mm;min-height:auto}
+        body{font-family:'Courier New',monospace;width:58mm;max-width:58mm;padding:6mm;margin:0;background:#fff;color:#000;font-size:10px;line-height:1.3;border:2px solid #000}
+        .header{text-align:center;border-bottom:1px solid #000;padding-bottom:5px;margin-bottom:7px}
+        .header h1{color:#000;font-size:16px}.header p{color:#000;margin:2px 0;font-size:9px}.header .os-number{font-size:11px;color:#000;margin-top:4px}
+        .info-grid{display:block;margin-bottom:7px}
+        .info-item{padding:3px 0;border-bottom:1px dashed #777}
+        .info-item strong{display:inline;color:#000;font-size:9px;text-transform:uppercase;margin-right:3px}
+        .info-item span{font-size:10px;color:#000}
+        .status-badge{display:inline;padding:0;border-radius:0;font-size:10px;color:#000!important;background:none!important}
+        .status-pendente{background:#fef3c7;color:#d97706}
+        .status-aprovado{background:#dbeafe;color:#2563eb}
+        .status-em-reparo{background:#ede9fe;color:#7c3aed}
+        .status-concluido{background:#d1fae5;color:#059669}
+        .status-entregue{background:#d1fae5;color:#059669}
+        .status-cancelado{background:#fee2e2;color:#dc2626}
+        .pagamento-pago{background:#d1fae5;color:#059669}
+        .pagamento-nao_pago{background:#fee2e2;color:#dc2626}
+        table{width:100%;border-collapse:collapse;margin:7px 0}th{background:#fff;padding:3px 0;border-bottom:1px solid #000;font-size:9px;color:#000;text-transform:uppercase;text-align:left}td{padding:3px 0;border-bottom:1px dashed #777;font-size:10px}
+        .total{text-align:right;font-size:13px;margin-top:7px;padding-top:5px;border-top:1px solid #000}.total span{color:#000}
+        .obs{margin-top:7px;padding:5px 0;border-top:1px dashed #777}
+        .obs p{margin:2px 0}
+        .assinatura-area{margin-top:7px;padding:5px 0;border-top:1px dashed #777;text-align:center}.assinatura-area img{max-height:45px;margin-top:4px}
+        .footer{text-align:center;margin-top:10px;color:#000;font-size:9px;border-top:1px solid #000;padding-top:5px}
+        .no-print{text-align:center;margin-top:20px}
+        .no-print button{padding:8px 24px;border:none;border-radius:4px;cursor:pointer;font-size:13px;font-weight:600;margin:0 4px}
+        .btn-print{background:#3b82f6;color:#fff}
+        .btn-close{background:#6b7280;color:#fff}
+        @media print{html,body{margin:0!important;width:58mm!important}.no-print{display:none!important}body{padding:6mm!important}}
+      </style>  <link rel="stylesheet" href="../css/theme.css">
+  <script src="../js/theme.js"></script>
+</head><body>
+        <div class="header"><h1>SUIT-TECH</h1><p>Assistência Técnica Especializada CNPJ:68.477.639/0001-04</p><div class="os-number">Orçamento #${orcamento.os||orcamento._id?.slice(-4)||'0000'}</div></div>
+        <div class="info-grid">
+          <div class="info-item"><strong>Cliente</strong><span>${orcamento.cliente||'-'}</span></div>
+          <div class="info-item"><strong>Data</strong><span>${orcamento.data?new Date(orcamento.data).toLocaleDateString('pt-BR'):'-'}</span></div>
+          <div class="info-item"><strong>Aparelho</strong><span>${orcamento.aparelho||'-'}</span></div>
+          <div class="info-item"><strong>Status</strong><span class="status-badge status-${statusClass}">${statusText}</span></div>
+          <div class="info-item"><strong>Pagamento</strong><span class="status-badge pagamento-${orcamento.pagamento||'nao_pago'}">${orcamento.pagamento==='pago'?'✅ Pago':'❌ Não Pago'}</span></div>
+          ${orcamento.marca?`<div class="info-item"><strong>Marca</strong><span>${orcamento.marca}</span></div>`:''}
+          ${orcamento.modelo?`<div class="info-item"><strong>Modelo</strong><span>${orcamento.modelo}</span></div>`:''}
+          ${orcamento.serie?`<div class="info-item"><strong>Nº Série</strong><span>${orcamento.serie}</span></div>`:''}
+        </div>
+        <h3 style="margin:15px 0 10px;color:#3b82f6;font-size:16px;">📋 Detalhes do Serviço</h3>
+        ${orcamento.servico?`<div class="obs"><strong>🛠️ Serviço Executado:</strong><p>${orcamento.servico}</p></div>`:''}
+        <div class="total">Valor Total: <span>R$ ${(parseFloat(orcamento.valor)||0).toFixed(2).replace('.',',')}</span></div>
+        ${orcamento.defeito?`<div class="obs"><strong>🔧 Defeito:</strong><p>${orcamento.defeito}</p></div>`:''}
+        ${orcamento.diagnostico?`<div class="obs"><strong>📋 Diagnóstico:</strong><p>${orcamento.diagnostico}</p></div>`:''}
+        ${orcamento.marcasUso?`<div class="obs"><strong>🔍 Marcas de Uso:</strong><p>${orcamento.marcasUso}</p></div>`:''}
+        ${temAssinatura?`<div class="assinatura-area"><strong>✍️ Assinatura:</strong><br><img src="${orcamento.assinatura}" alt="Assinatura"></div>`:''}
+        <div class="footer"><p>📌 Válido por 90 dias </p>SUIT-TECH - Assistência Técnica</div>
+        <div class="no-print"><button class="btn-print" onclick="window.print()">🖨️ Imprimir</button><button class="btn-close" onclick="window.close()">✖ Fechar</button></div>
+        <script>
+          window.onload = function() {
+            setTimeout(function() {
+              window.print();
+              window.onafterprint = function() { window.close(); };
+            }, 300);
+          };
+        <\/script>
+      </body></html>`;
+      const win = window.open('', '_blank', 'width=320,height=600,menubar=no,toolbar=no');
+      if (!win) {
+        showToast('❌ Permita pop-ups para imprimir o orçamento.', 'error');
+        return;
+      }
+      win.document.write(conteudo);
+      win.document.close();
+    }
+
+    // ============================================
+    // EXPORTAR CSV
+    // ============================================
+    function exportarOrcamentosCSV() {
+      if (budgetsCache.length === 0) { showToast('❌ Nenhum orçamento', 'error'); return; }
+      let csv = 'OS,Data,Cliente,Aparelho,Defeito,Valor,Status,Pagamento\n';
+      budgetsCache.forEach(b => {
+        const data = b.data ? new Date(b.data).toLocaleDateString('pt-BR') : '';
+        csv += `${b.os||''},${data},${b.cliente||''},${b.aparelho||''},${b.defeito||''},${b.valor||0},${b.status||''},${b.pagamento||''}\n`;
+      });
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `orcamentos_${new Date().toISOString().slice(0,10)}.csv`;
+      link.click();
+      showToast('📥 CSV exportado!', 'success');
+    }
+
+    // ============================================
+    // ATUALIZAR TUDO
+    // ============================================
+    async function atualizarTudo() {
+      showToast('⏳ Atualizando...', 'warning');
+      await carregarClientes();
+      await loadBudgets();
+      showToast('✅ Dados atualizados!', 'success');
+    }
+
+    // ============================================
+    // FECHAR MODAL (CLICK FORA)
+    // ============================================
+    document.addEventListener('click', function(e) {
+      if (e.target.classList.contains('modal')) e.target.classList.remove('open');
+    });
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') {
+        document.querySelectorAll('.modal.open').forEach(el => el.classList.remove('open'));
+        document.querySelectorAll('.fotos-dropdown-menu').forEach(el => el.classList.remove('open'));
+        fecharCamera();
+        fecharGaleria();
+      }
+    });
+
+    // ============================================
+    // INICIALIZAÇÃO
+    // ============================================
+    document.addEventListener('DOMContentLoaded', async function() {
+      await carregarClientes();
+      await loadBudgets();
+    });
+
+    // ============================================
+    // EXPOSIÇÃO GLOBAL
+    // ============================================
+    window.loadBudgets = loadBudgets;
+    window.renderBudgets = renderBudgets;
+    window.carregarClientes = carregarClientes;
+    window.openBudgetModalUnificado = openBudgetModalUnificado;
+    window.closeBudgetModalUnificado = closeBudgetModalUnificado;
+    window.saveBudgetUnificado = saveBudgetUnificado;
+    window.editBudgetUnificado = editBudgetUnificado;
+    window.receberPagamentoOrcamento = receberPagamentoOrcamento;
+    window.deleteBudget = deleteBudget;
+    window.imprimirOrcamento = imprimirOrcamento;
+    window.calcularLucroUnificado = calcularLucroUnificado;
+    window.exportarOrcamentosCSV = exportarOrcamentosCSV;
+    window.atualizarTudo = atualizarTudo;
+    window.showToast = showToast;
+    window.fazerLogout = fazerLogout;
+    window.toggleFotosDropdown = toggleFotosDropdown;
+    window.tirarFoto = tirarFoto;
+    window.verImagens = verImagens;
+    window.deletarFoto = deletarFoto;
+    window.baixarFoto = baixarFoto;
+    window.abrirPastaAnexos = abrirPastaAnexos;
+    window.fecharCamera = fecharCamera;
+    window.fecharGaleria = fecharGaleria;
+    window.limparAssinaturaModalUnificado = limparAssinaturaModalUnificado;
+    window.salvarAssinaturaModalUnificado = salvarAssinaturaModalUnificado;
+    window.carregarAssinaturaModalUnificado = carregarAssinaturaModalUnificado;
+    window.baixarAssinaturaModalUnificado = baixarAssinaturaModalUnificado;
+    window.enviarOrcamentoWhatsApp = enviarOrcamentoWhatsApp;
+    window.enviarAgradecimentoOrcamento = enviarAgradecimentoOrcamento;
+    window.enviarGarantiaOrcamento = enviarGarantiaOrcamento;
+    window.enviarWhatsApp = enviarWhatsApp;
+    window.prepararNovoClienteInline = prepararNovoClienteInline;
+    window.salvarClienteInline = salvarClienteInline;
+
+    // ============================================
+    // FUNÇÕES DO MODAL DE CLIENTE RÁPIDO (mantidas para compatibilidade)
+    // ============================================
+    function abrirNovoClienteRapido() {
+      // Apenas chama a função inline
+      prepararNovoClienteInline();
+    }
+    function fecharClienteRapido() {
+      // Fecha o modal antigo (se visível)
+      document.getElementById('cliente-rapido-modal').classList.remove('open');
+    }
+    async function salvarClienteRapido(e) {
+      // Reutiliza a função inline
+      e.preventDefault();
+      await salvarClienteInline();
+    }
+  </script>
+
+  <script src="../js/carregarMenu.js"></script>
+  <script src="../js/glitter.js"></script>
+</body>
+</html>

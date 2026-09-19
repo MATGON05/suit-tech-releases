@@ -1,0 +1,998 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="../css/style.css">
+  <title>Backup Automático - SUIT-TECH</title>
+  <!-- CSS EMBUTIDO (tema laranja/cinza) -->
+  <style>
+    :root {
+      --bg: #1A1A1A;
+      --bg-2: #242424;
+      --surface: #2A2A2A;
+      --surface-2: #333333;
+      --surface-3: #3D3D3D;
+      --border: #3D3D3D;
+      --border-2: #4A4A4A;
+      --primary: #F97316;
+      --primary-hover: #EA580C;
+      --primary-light: rgba(249, 115, 22, 0.13);
+      --primary-glow: rgba(249, 115, 22, 0.3);
+      --text: #E8E8E8;
+      --text-secondary: #B0B0B0;
+      --text-muted: #7A7A7A;
+      --success: #22C55E;
+      --success-bg: rgba(34,197,94,0.15);
+      --warning: #F59E0B;
+      --warning-bg: rgba(245,158,11,0.15);
+      --danger: #EF4444;
+      --danger-bg: rgba(239,68,68,0.15);
+      --purple: #8B5CF6;
+      --purple-bg: rgba(139,92,246,0.15);
+      --gold: #FBBF24;
+      --gold-bg: rgba(251,191,36,0.15);
+      --radius: 12px;
+      --radius-sm: 8px;
+      --shadow: 0 4px 24px rgba(0,0,0,0.5);
+      --transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
+      --sidebar-width: 260px;
+    }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:'Segoe UI',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
+    ::-webkit-scrollbar { width:6px; height:6px; }
+    ::-webkit-scrollbar-track { background:var(--bg); }
+    ::-webkit-scrollbar-thumb { background:var(--primary); border-radius:3px; }
+    ::-webkit-scrollbar-thumb:hover { background:var(--primary-hover); }
+    .app { display:flex; min-height:100vh; }
+    .sidebar { width:var(--sidebar-width); background:var(--surface); border-right:1px solid var(--border); display:flex; flex-direction:column; flex-shrink:0; position:sticky; top:0; height:100vh; overflow-y:auto; z-index:100; backdrop-filter:blur(12px); background:rgba(26,26,26,0.92); }
+    .brand { padding:20px 18px; display:flex; align-items:center; gap:12px; border-bottom:1px solid var(--border); }
+    .brand .logo { width:40px; height:40px; border-radius:var(--radius-sm); display:flex; align-items:center; justify-content:center; overflow:hidden; background:var(--primary-light); }
+    .brand .logo img { width:100%; height:100%; object-fit:contain; }
+    .brand h1 { font-size:18px; font-weight:700; background:linear-gradient(135deg,var(--primary),var(--primary-hover)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+    .brand small { color:var(--text-muted); font-size:11px; display:block; -webkit-text-fill-color:var(--text-muted); }
+    nav { padding:8px 10px; display:flex; flex-direction:column; gap:2px; flex:1; overflow-y:auto; }
+    nav a { padding:8px 14px; border-radius:var(--radius-sm); color:var(--text-secondary); text-decoration:none; transition:var(--transition); font-weight:500; font-size:13px; display:flex; align-items:center; gap:10px; white-space:nowrap; position:relative; }
+    nav a::before { content:''; width:4px; height:4px; border-radius:50%; background:var(--text-muted); transition:var(--transition); flex-shrink:0; }
+    nav a:hover { background:var(--surface-2); color:var(--text); }
+    nav a:hover::before { background:var(--primary); width:6px; height:6px; }
+    nav a.active { background:var(--primary-light); color:var(--primary); box-shadow:inset 3px 0 0 var(--primary); }
+    nav a.active::before { background:var(--primary); width:8px; height:8px; }
+    .sidebar-footer { padding:12px 16px; border-top:1px solid var(--border); color:var(--text-muted); font-size:11px; text-align:center; }
+    .content { flex:1; padding:20px 24px; overflow-y:auto; min-height:100vh; }
+    .topbar { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:12px; position:sticky; top:0; background:var(--bg); z-index:50; padding:8px 0; }
+    .topbar h2 { font-size:clamp(20px,3vw,28px); font-weight:700; background:linear-gradient(135deg,var(--text),var(--text-secondary)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+    .topbar-right { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+    .btn { padding:8px 16px; border:none; border-radius:var(--radius-sm); background:var(--surface-2); color:var(--text); cursor:pointer; font-weight:600; font-size:13px; transition:var(--transition); display:inline-flex; align-items:center; gap:6px; white-space:nowrap; }
+    .btn:hover { background:var(--surface-3); transform:translateY(-1px); }
+    .btn-primary { background:var(--primary); color:#fff; }
+    .btn-primary:hover { background:var(--primary-hover); box-shadow:0 4px 16px var(--primary-glow); }
+    .btn-success { background:var(--success); color:#fff; }
+    .btn-success:hover { background:#16a34a; box-shadow:0 4px 16px rgba(34,197,94,0.3); }
+    .btn-danger { background:var(--danger); color:#fff; }
+    .btn-danger:hover { background:#dc2626; box-shadow:0 4px 16px rgba(239,68,68,0.3); }
+    .btn-warning { background:var(--warning); color:#000; }
+    .btn-warning:hover { background:#d97706; }
+    .btn-purple { background:var(--purple); color:#fff; }
+    .btn-purple:hover { background:#7c3aed; }
+    .btn-sm { padding:4px 10px; font-size:12px; }
+    .panel { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:16px 18px; margin-bottom:16px; transition:var(--transition); overflow:hidden; }
+    .panel:hover { border-color:var(--surface-3); }
+    .panel h3 { font-size:15px; font-weight:600; margin-bottom:14px; color:var(--text-secondary); letter-spacing:0.3px; }
+    .table-wrapper { overflow-x:auto; -webkit-overflow-scrolling:touch; margin:0 -4px; }
+    .data-table { width:100%; border-collapse:collapse; font-size:14px; min-width:600px; }
+    .data-table thead th { text-align:left; padding:10px 12px; color:var(--text-muted); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:0.5px; border-bottom:2px solid var(--border); }
+    .data-table tbody td { padding:10px 12px; border-bottom:1px solid var(--border); color:var(--text-secondary); vertical-align:middle; }
+    .data-table tbody tr:hover { background:var(--surface-2); }
+    .data-table .empty { text-align:center; color:var(--text-muted); padding:32px; font-style:italic; }
+    .toolbar { display:flex; gap:10px; margin-bottom:14px; flex-wrap:wrap; align-items:center; }
+    .toolbar input, .toolbar select { background:var(--surface-2); border:1px solid var(--border); color:var(--text); padding:8px 12px; border-radius:var(--radius-sm); min-width:150px; flex:1 1 auto; font-size:14px; transition:var(--transition); }
+    .toolbar input:focus, .toolbar select:focus { outline:none; border-color:var(--primary); }
+    .modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); align-items:center; justify-content:center; z-index:1000; backdrop-filter:blur(4px); padding:16px; }
+    .modal.open { display:flex; }
+    .modal-content { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); width:100%; max-width:700px; max-height:90vh; overflow-y:auto; animation:modalFadeIn 0.3s ease; }
+    .modal-header { display:flex; justify-content:space-between; align-items:center; padding:16px 20px; border-bottom:1px solid var(--border); position:sticky; top:0; background:var(--surface); z-index:10; border-radius:var(--radius) var(--radius) 0 0; }
+    .modal-header h3 { margin:0; font-size:18px; }
+    .close { background:transparent; border:none; color:var(--text-muted); font-size:28px; cursor:pointer; transition:var(--transition); padding:0 4px; }
+    .close:hover { color:var(--text); }
+    .modal-footer { display:flex; justify-content:flex-end; gap:10px; padding:14px 20px; border-top:1px solid var(--border); background:var(--surface-2); border-radius:0 0 var(--radius) var(--radius); position:sticky; bottom:0; flex-wrap:wrap; }
+    form { padding:16px 20px; }
+    .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+    .form-group { display:flex; flex-direction:column; gap:4px; }
+    .form-group.span-2 { grid-column:span 2; }
+    .form-group label { font-size:13px; color:var(--text-muted); font-weight:500; }
+    .form-group input, .form-group select, .form-group textarea { background:var(--bg); border:1px solid var(--border); color:var(--text); padding:8px 12px; border-radius:var(--radius-sm); font-family:inherit; transition:var(--transition); font-size:14px; width:100%; }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline:none; border-color:var(--primary); }
+    .form-group input[readonly] { opacity:0.7; cursor:not-allowed; }
+    .form-group textarea { resize:vertical; min-height:60px; }
+    .status-badge { padding:3px 12px; border-radius:999px; font-size:12px; font-weight:600; display:inline-block; letter-spacing:0.3px; white-space:nowrap; }
+    .status-pendente { background:var(--warning-bg); color:var(--warning); }
+    .status-concluido { background:var(--success-bg); color:var(--success); }
+    .status-cancelado { background:var(--danger-bg); color:var(--danger); }
+    .toast { position:fixed; bottom:24px; right:24px; padding:14px 20px; border-radius:var(--radius-sm); color:#fff; font-weight:600; z-index:9999; opacity:0; transform:translateY(20px) scale(0.95); transition:all 0.3s cubic-bezier(0.4,0,0.2,1); box-shadow:0 8px 32px rgba(0,0,0,0.5); max-width:420px; font-size:14px; pointer-events:none; }
+    .toast.show { opacity:1; transform:translateY(0) scale(1); }
+    .toast-success { background:linear-gradient(135deg,#22c55e,#16a34a); }
+    .toast-error { background:linear-gradient(135deg,#ef4444,#dc2626); }
+    .toast-warning { background:linear-gradient(135deg,#f59e0b,#d97706); color:#000; }
+    .actions { text-align:right; white-space:nowrap; }
+    .actions button { margin-left:4px; padding:3px 8px; font-size:11px; }
+    .badge { font-size:10px; padding:2px 10px; border-radius:12px; background:var(--surface-3); color:var(--text-muted); font-weight:400; }
+    .info-box { padding:12px 16px; background:var(--surface-2); border-radius:var(--radius-sm); margin-top:12px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; font-size:13px; border-left:3px solid var(--primary); }
+    .info-box .label { color:var(--text-muted); }
+    .info-box .valor { color:var(--text); font-weight:600; word-break:break-all; font-family:monospace; }
+    .stats-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:12px; margin-bottom:20px; }
+    .stat-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:16px 14px; display:flex; flex-direction:column; gap:4px; transition:var(--transition); position:relative; overflow:hidden; }
+    .stat-card::after { content:''; position:absolute; bottom:0; left:0; right:0; height:3px; background:var(--text-muted); border-radius:0 0 var(--radius) var(--radius); }
+    .stat-card:hover { border-color:var(--primary); transform:translateY(-2px); box-shadow:var(--shadow); }
+    .stat-label { color:var(--text-secondary); font-size:11px; font-weight:500; text-transform:uppercase; letter-spacing:0.5px; }
+    .stat-value { font-size:clamp(22px,3vw,28px); font-weight:700; }
+    .accent-green::after { background:var(--success); }
+    .accent-green .stat-value { color:var(--success); }
+    .accent-blue::after { background:var(--primary); }
+    .accent-blue .stat-value { color:var(--primary); }
+    .accent-gold::after { background:var(--gold); }
+    .accent-gold .stat-value { color:var(--gold); }
+    .accent-red::after { background:var(--danger); }
+    .accent-red .stat-value { color:var(--danger); }
+    .accent-purple::after { background:var(--purple); }
+    .accent-purple .stat-value { color:var(--purple); }
+    .accent-orange::after { background:var(--primary); }
+    .accent-orange .stat-value { color:var(--primary); }
+    .backup-config { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:12px; }
+    .backup-config .form-group { margin-bottom:0; }
+    .backup-history { margin-top:16px; }
+    .backup-history .backup-item { display:flex; justify-content:space-between; align-items:center; padding:10px 14px; border-bottom:1px solid var(--border); flex-wrap:wrap; gap:8px; }
+    .backup-history .backup-item:last-child { border-bottom:none; }
+    .backup-status { display:flex; align-items:center; gap:8px; }
+    .backup-status .dot { width:10px; height:10px; border-radius:50%; display:inline-block; }
+    .backup-status .dot.success { background:var(--success); }
+    .backup-status .dot.error { background:var(--danger); }
+    .backup-status .dot.warning { background:var(--warning); }
+    .backup-pasta-info { background:var(--surface-2); border-radius:var(--radius-sm); padding:12px 16px; margin-top:12px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+    .backup-pasta-info .label { color:var(--text-muted); font-size:12px; }
+    .backup-pasta-info .caminho { color:var(--text-secondary); font-size:13px; font-family:monospace; word-break:break-all; flex:1; }
+    .backup-pasta-info .btn { padding:4px 12px; font-size:12px; }
+    .backup-arquivo-info { background:var(--surface-3); border-radius:var(--radius-sm); padding:8px 14px; margin-top:8px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; font-size:13px; color:var(--text-secondary); }
+    .backup-arquivo-info strong { color:var(--text); }
+    .restore-area { border:2px dashed var(--border); border-radius:var(--radius); padding:24px; text-align:center; margin-top:12px; transition:var(--transition); cursor:pointer; }
+    .restore-area:hover { border-color:var(--primary); background:var(--surface-2); }
+    .restore-area .icon { font-size:40px; display:block; margin-bottom:8px; }
+    .restore-area .info { color:var(--text-muted); font-size:13px; }
+    .restore-area .info strong { color:var(--text-secondary); }
+    .restore-progress { margin-top:12px; display:none; }
+    .restore-progress .progress-bar { width:100%; height:6px; background:var(--surface-2); border-radius:3px; overflow:hidden; margin-top:8px; }
+    .restore-progress .progress-bar .fill { height:100%; background:var(--primary); border-radius:3px; transition:width 0.3s ease; width:0%; }
+    .restore-progress .progress-text { color:var(--text-muted); font-size:13px; margin-top:4px; }
+    .restore-result { margin-top:12px; padding:12px 16px; border-radius:var(--radius-sm); display:none; }
+    .restore-result.success { display:block; background:var(--success-bg); border:1px solid var(--success); color:var(--success); }
+    .restore-result.error { display:block; background:var(--danger-bg); border:1px solid var(--danger); color:var(--danger); }
+    .restore-result .details { margin-top:6px; font-size:13px; opacity:0.8; white-space:pre-wrap; }
+    .backup-actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:8px; }
+    .restore-selector { margin-top:16px; padding:16px; background:var(--surface-2); border-radius:var(--radius-sm); border:1px solid var(--border); }
+    .restore-selector .selector-header { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:12px; }
+    .restore-selector .selector-header h4 { color:var(--text-secondary); font-size:14px; margin:0; }
+    .restore-selector .colecoes-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:6px 12px; max-height:200px; overflow-y:auto; }
+    .restore-selector .colecao-item { display:flex; align-items:center; gap:6px; font-size:13px; color:var(--text-secondary); padding:2px 0; }
+    .restore-selector .colecao-item input[type="checkbox"] { width:16px; height:16px; accent-color:var(--primary); }
+    .restore-selector .colecao-item .count { color:var(--text-muted); font-size:11px; margin-left:auto; }
+    .restore-selector .btn-restore-selected { margin-top:12px; }
+    @media (max-width:768px) {
+      .sidebar { position:fixed; left:-320px; top:0; height:100vh; width:var(--sidebar-width); z-index:100; transition:left 0.3s; }
+      .sidebar.open { left:0; }
+      .content { padding:12px 14px; }
+      .topbar h2 { font-size:18px; }
+      .stats-grid { grid-template-columns:repeat(2,1fr); }
+      .table-wrapper { overflow-x:auto; }
+      .data-table { font-size:12px; min-width:500px; }
+      .modal-content { max-width:100%; max-height:95vh; border-radius:var(--radius) var(--radius) 0 0; }
+      .form-grid { grid-template-columns:1fr; }
+      .form-group.span-2 { grid-column:span 1; }
+      .toolbar { flex-direction:column; align-items:stretch; }
+      .toolbar input, .toolbar select { min-width:auto; flex:1; }
+      .backup-config { grid-template-columns:1fr; }
+      .restore-selector .colecoes-grid { grid-template-columns:1fr 1fr; }
+      .btn { padding:6px 12px; font-size:12px; }
+      .btn-sm { padding:3px 8px; font-size:10px; }
+    }
+    @keyframes modalFadeIn { from { opacity:0; transform:scale(0.95) translateY(20px); } to { opacity:1; transform:scale(1) translateY(0); } }
+    @keyframes slideDown { from { opacity:0; transform:translateY(-8px); } to { opacity:1; transform:translateY(0); } }
+  </style>
+  <script>
+    (function() {
+      const sessao = localStorage.getItem('sessao_suittech');
+      if (!sessao) { window.location.href = 'login.html'; return; }
+      try {
+        const dados = JSON.parse(sessao);
+        if (!dados.logado) { window.location.href = 'login.html'; return; }
+      } catch (e) { window.location.href = 'login.html'; }
+    })();
+  </script>
+  <link rel="stylesheet" href="../css/tema-novo-overrides.css">
+  <link rel="stylesheet" href="../css/theme.css">
+  <script src="../js/theme.js"></script>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <span class="logo"><img src="../assets/logo.png" alt="SUIT-TECH"></span>
+        <div>
+          <h1>SUIT-TECH</h1>
+          <small>Assistência Técnica</small>
+        </div>
+      </div>
+      <div id="menu-container"></div>
+      <footer class="sidebar-footer">
+        <span>Rodando local</span>
+        <br>
+        <button onclick="fazerLogout()" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:12px;margin-top:8px;">🚪 Sair</button>
+      </footer>
+    </aside>
+
+    <main class="content">
+      <header class="topbar">
+        <h2>💾 Backup e Restauração</h2>
+        <div class="backup-actions">
+          <button class="btn btn-success" onclick="fazerBackupAgora()">📦 Fazer Backup Agora</button>
+          <button class="btn btn-purple" onclick="abrirPastaBackup()">📂 Abrir Pasta de Backup</button>
+          <button class="btn btn-warning" onclick="document.getElementById('restore-file-input').click()">🔄 Restaurar Backup</button>
+          <input type="file" id="restore-file-input" accept=".json" style="display:none" onchange="window.carregarArquivoBackup(event)">
+        </div>
+      </header>
+
+      <!-- Status do Backup -->
+      <section class="panel">
+        <h3>📊 Status do Backup</h3>
+        <div class="stats-grid" style="grid-template-columns: repeat(3, 1fr);">
+          <div class="stat-card accent-green">
+            <span class="stat-label">Último Backup</span>
+            <strong class="stat-value" id="ultimo-backup" style="font-size:16px;">Nunca</strong>
+          </div>
+          <div class="stat-card accent-blue">
+            <span class="stat-label">Próximo Backup</span>
+            <strong class="stat-value" id="proximo-backup" style="font-size:16px;">--</strong>
+          </div>
+          <div class="stat-card accent-gold">
+            <span class="stat-label">Total de Backups</span>
+            <strong class="stat-value" id="total-backups">0</strong>
+          </div>
+        </div>
+
+        <div class="backup-pasta-info">
+          <span class="label">📁 Pasta de Backup:</span>
+          <span class="caminho" id="backup-pasta-caminho">Carregando...</span>
+          <button class="btn btn-primary btn-sm" onclick="abrirPastaBackup()">📂 Abrir</button>
+          <button class="btn btn-success btn-sm" onclick="copiarCaminhoBackup()">📋 Copiar</button>
+        </div>
+
+        <div class="backup-arquivo-info" id="backup-arquivo-info" style="display:none;">
+          <span>📄 Último arquivo:</span>
+          <strong id="ultimo-arquivo-backup">-</strong>
+          <span style="color:var(--text-muted);">|</span>
+          <span>📦 Tamanho:</span>
+          <strong id="ultimo-tamanho-backup">-</strong>
+        </div>
+      </section>
+
+      <!-- Configurações -->
+      <section class="panel">
+        <h3>⚙️ Configurações</h3>
+        <div class="backup-config">
+          <div class="form-group">
+            <label>Frequência do Backup</label>
+            <select id="backup-frequencia" onchange="salvarConfigBackup()">
+              <option value="diario">Diário</option>
+              <option value="semanal">Semanal</option>
+              <option value="mensal">Mensal</option>
+              <option value="desativado">Desativado</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Horário (24h)</label>
+            <input type="time" id="backup-horario" value="23:00" onchange="salvarConfigBackup()">
+          </div>
+          <div class="form-group">
+            <label>Dia da Semana (para semanal)</label>
+            <select id="backup-dia-semana" onchange="salvarConfigBackup()">
+              <option value="0">Domingo</option>
+              <option value="1">Segunda-feira</option>
+              <option value="2">Terça-feira</option>
+              <option value="3">Quarta-feira</option>
+              <option value="4">Quinta-feira</option>
+              <option value="5">Sexta-feira</option>
+              <option value="6">Sábado</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Dia do Mês (para mensal)</label>
+            <input type="number" id="backup-dia-mes" min="1" max="28" value="1" onchange="salvarConfigBackup()">
+          </div>
+        </div>
+        <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
+          <button class="btn btn-primary" onclick="salvarConfigBackup()">💾 Salvar Configuração</button>
+          <button class="btn btn-danger" onclick="desativarBackup()">⏹️ Desativar Backup</button>
+        </div>
+      </section>
+
+      <!-- Restauração -->
+      <section class="panel">
+        <h3>🔄 Restaurar Backup</h3>
+        <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 12px;">
+          Selecione um arquivo de backup (.json) e escolha quais coleções deseja restaurar.
+          <strong style="color: var(--warning);">⚠️ As coleções selecionadas substituirão os dados atuais!</strong>
+        </p>
+        <div class="restore-area" onclick="document.getElementById('restore-file-input').click()">
+          <span class="icon">📂</span>
+          <div class="info">
+            <strong>Clique para selecionar um arquivo de backup</strong><br>
+            <span>Suporta arquivos .json exportados pelo sistema</span>
+          </div>
+        </div>
+
+        <!-- Seletor de coleções -->
+        <div id="restore-selector-container" style="display:none;">
+          <div class="restore-selector">
+            <div class="selector-header">
+              <h4>📋 Selecione as coleções para restaurar</h4>
+              <div>
+                <button class="btn btn-sm btn-primary" onclick="selecionarTodasColecoes(true)">✅ Selecionar Todas</button>
+                <button class="btn btn-sm btn-secondary" onclick="selecionarTodasColecoes(false)">❌ Desmarcar Todas</button>
+              </div>
+            </div>
+            <div id="colecoes-lista" class="colecoes-grid"></div>
+            <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
+              <button class="btn btn-danger" onclick="restaurarSelecionados()" id="btn-restaurar-selecionados">🔄 Restaurar Selecionados</button>
+              <button class="btn btn-secondary" onclick="cancelarRestauracao()">Cancelar</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="restore-progress" id="restore-progress">
+          <div class="progress-text" id="restore-progress-text">⏳ Restaurando dados...</div>
+          <div class="progress-bar">
+            <div class="fill" id="restore-progress-fill"></div>
+          </div>
+        </div>
+        <div class="restore-result" id="restore-result">
+          <strong id="restore-result-title"></strong>
+          <div class="details" id="restore-result-details"></div>
+        </div>
+      </section>
+
+      <!-- Histórico -->
+      <section class="panel">
+        <h3>📋 Histórico de Backups</h3>
+        <div class="backup-history" id="backup-history">
+          <div class="backup-item">
+            <span style="color: var(--text-muted);">Nenhum backup realizado</span>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="../js/api.js"></script>
+  <script src="../js/app.js"></script>
+  <script src="../js/carregarMenu.js"></script>
+  <script src="../js/glitter.js"></script>
+  <script>
+    // ============================================
+    // TOAST
+    // ============================================
+    function showToast(mensagem, tipo = 'success') {
+      const toast = document.getElementById('toast');
+      if (!toast) return;
+      toast.textContent = mensagem;
+      toast.className = 'toast toast-' + tipo;
+      setTimeout(() => toast.classList.add('show'), 100);
+      setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+
+    function fazerLogout() {
+      if (confirm('Deseja realmente sair?')) {
+        localStorage.removeItem('sessao_suittech');
+        window.location.href = 'login.html';
+      }
+    }
+
+    function getBackupPasta() {
+      if (typeof window.electron !== 'undefined' && window.electron.getBackupPath) {
+        return window.electron.getBackupPath();
+      }
+      return 'backup';
+    }
+
+    function getNomeArquivoBackup() {
+      const agora = new Date();
+      const ano = agora.getFullYear();
+      const mes = String(agora.getMonth() + 1).padStart(2, '0');
+      const dia = String(agora.getDate()).padStart(2, '0');
+      const hora = String(agora.getHours()).padStart(2, '0');
+      const minuto = String(agora.getMinutes()).padStart(2, '0');
+      const segundo = String(agora.getSeconds()).padStart(2, '0');
+      return `backup_suittech_${ano}${mes}${dia}_${hora}${minuto}${segundo}.json`;
+    }
+
+    function atualizarPastaBackup() {
+      if (typeof window.electron !== 'undefined' && window.electron.getBackupPath) {
+        window.electron.getBackupPath().then(caminho => {
+          document.getElementById('backup-pasta-caminho').textContent = caminho;
+        }).catch(() => {
+          document.getElementById('backup-pasta-caminho').textContent = 'Erro ao obter caminho';
+        });
+      } else {
+        document.getElementById('backup-pasta-caminho').textContent = 'API não disponível';
+      }
+    }
+
+    function abrirPastaBackup() {
+      try {
+        if (typeof window.electron !== 'undefined' && window.electron.abrirPasta) {
+          window.electron.abrirPasta(null);
+          showToast('📂 Abrindo pasta de backup...', 'success');
+          return;
+        }
+        showToast('📁 Função disponível apenas no EXE', 'warning');
+      } catch (erro) {
+        console.error('Erro ao abrir pasta:', erro);
+        showToast('❌ Erro ao abrir pasta: ' + erro.message, 'error');
+      }
+    }
+
+    function copiarCaminhoBackup() {
+      if (typeof window.electron !== 'undefined' && window.electron.getBackupPath) {
+        window.electron.getBackupPath().then(caminho => {
+          if (navigator.clipboard) {
+            navigator.clipboard.writeText(caminho);
+            showToast('📋 Caminho copiado!', 'success');
+          } else {
+            const input = document.createElement('input');
+            input.value = caminho;
+            document.body.appendChild(input);
+            input.select();
+            document.execCommand('copy');
+            document.body.removeChild(input);
+            showToast('📋 Caminho copiado!', 'success');
+          }
+        }).catch(() => showToast('❌ Erro ao obter caminho', 'error'));
+      } else {
+        showToast('❌ API não disponível', 'error');
+      }
+    }
+
+    function carregarConfigBackup() {
+      try {
+        const config = JSON.parse(localStorage.getItem('backup_config') || '{}');
+        if (config.frequencia) document.getElementById('backup-frequencia').value = config.frequencia;
+        if (config.horario) document.getElementById('backup-horario').value = config.horario;
+        if (config.diaSemana !== undefined) document.getElementById('backup-dia-semana').value = config.diaSemana;
+        if (config.diaMes) document.getElementById('backup-dia-mes').value = config.diaMes;
+      } catch (e) {}
+      atualizarCamposBackup();
+      atualizarPastaBackup();
+    }
+
+    function salvarConfigBackup() {
+      const config = {
+        frequencia: document.getElementById('backup-frequencia').value,
+        horario: document.getElementById('backup-horario').value,
+        diaSemana: parseInt(document.getElementById('backup-dia-semana').value),
+        diaMes: parseInt(document.getElementById('backup-dia-mes').value) || 1,
+        ativo: true,
+        ultimaAtualizacao: new Date().toISOString()
+      };
+      localStorage.setItem('backup_config', JSON.stringify(config));
+      atualizarCamposBackup();
+      mostrarProximoBackup();
+      showToast('✅ Configuração salva com sucesso!', 'success');
+    }
+
+    function desativarBackup() {
+      if (confirm('Desativar o backup automático?')) {
+        const config = JSON.parse(localStorage.getItem('backup_config') || '{}');
+        config.ativo = false;
+        localStorage.setItem('backup_config', JSON.stringify(config));
+        document.getElementById('backup-frequencia').value = 'desativado';
+        document.getElementById('proximo-backup').textContent = 'Desativado';
+        showToast('⏹️ Backup desativado', 'warning');
+      }
+    }
+
+    function atualizarCamposBackup() {
+      const freq = document.getElementById('backup-frequencia').value;
+      document.getElementById('backup-dia-semana').style.display = freq === 'semanal' ? 'block' : 'none';
+      document.getElementById('backup-dia-mes').style.display = freq === 'mensal' ? 'block' : 'none';
+    }
+
+    function mostrarProximoBackup() {
+      const config = JSON.parse(localStorage.getItem('backup_config') || '{}');
+      if (!config.ativo || config.frequencia === 'desativado') {
+        document.getElementById('proximo-backup').textContent = 'Desativado';
+        return;
+      }
+      const agora = new Date();
+      let proximo = new Date(agora);
+      switch(config.frequencia) {
+        case 'diario':
+          proximo.setDate(proximo.getDate() + 1);
+          break;
+        case 'semanal':
+          const diasAteProx = (config.diaSemana - agora.getDay() + 7) % 7 || 7;
+          proximo.setDate(proximo.getDate() + diasAteProx);
+          break;
+        case 'mensal':
+          if (agora.getDate() >= config.diaMes) {
+            proximo.setMonth(proximo.getMonth() + 1);
+          }
+          proximo.setDate(config.diaMes);
+          break;
+      }
+      const [h, m] = (config.horario || '23:00').split(':');
+      proximo.setHours(parseInt(h), parseInt(m), 0, 0);
+      document.getElementById('proximo-backup').textContent = proximo.toLocaleDateString('pt-BR') + ' ' + proximo.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+    }
+
+    // ============================================
+    // FAZER BACKUP (DINÂMICO - TODAS AS COLEÇÕES)
+    // ============================================
+    async function fazerBackupAgora() {
+      try {
+        const btn = document.querySelector('.btn-success');
+        btn.textContent = '⏳ Gerando backup...';
+        btn.disabled = true;
+
+        if (typeof window.api === 'undefined') {
+          showToast('❌ API não disponível!', 'error');
+          btn.textContent = '📦 Fazer Backup Agora';
+          btn.disabled = false;
+          return;
+        }
+
+        showToast('⏳ Coletando dados de todas as coleções...', 'warning');
+
+        // === DETECTA DINAMICAMENTE TODAS AS COLEÇÕES ===
+        const colecoes = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && key.startsWith('db_')) {
+            const nomeColecao = key.replace('db_', '');
+            colecoes.push(nomeColecao);
+          }
+        }
+
+        if (colecoes.length === 0) {
+          colecoes.push(
+            'clientes', 'vendas', 'orcamentos', 'agendamentos', 'devolucoes',
+            'caixa_entrada', 'caixa_saida', 'contas_pagar', 'valores_receber',
+            'produtos', 'movimentacoes_estoque',
+            'financial_accounts', 'financial_categories', 'suppliers',
+            'audit_logs', 'lixeira', 'historico_mensal'
+          );
+        }
+
+        const dadosCompletos = {};
+        let totalItens = 0;
+
+        for (const colecao of colecoes) {
+          try {
+            const resultado = await window.api.buscar(colecao);
+            if (resultado && resultado.sucesso) {
+              const dados = JSON.parse(JSON.stringify(resultado.dados || []));
+              dadosCompletos[colecao] = dados;
+              totalItens += dados.length;
+            } else {
+              dadosCompletos[colecao] = [];
+            }
+          } catch (erro) {
+            dadosCompletos[colecao] = [];
+            console.error(`❌ Erro ao buscar ${colecao}:`, erro);
+          }
+        }
+
+        const backupCompleto = {
+          _versao: '2.0',
+          _data: new Date().toISOString(),
+          _totalItens: totalItens,
+          _sistema: 'SUIT-TECH Assistência Técnica',
+          _colecoes: colecoes
+        };
+
+        for (const colecao of colecoes) {
+          backupCompleto[colecao] = dadosCompletos[colecao] || [];
+        }
+
+        const jsonData = JSON.stringify(backupCompleto, null, 2);
+        const tamanhoKB = (jsonData.length / 1024).toFixed(1);
+
+        showToast(`⏳ Salvando ${totalItens} itens (${tamanhoKB} KB)...`, 'warning');
+
+        const nomeArquivo = getNomeArquivoBackup();
+
+        if (typeof window.electron !== 'undefined' && typeof window.electron.salvarArquivo === 'function') {
+          try {
+            const pastaBackup = await window.electron.getBackupPath();
+            const resultado = await window.electron.salvarArquivo(pastaBackup, nomeArquivo, jsonData);
+            
+            if (resultado && resultado.sucesso) {
+              showToast(`✅ Backup concluído! ${totalItens} itens salvos`, 'success');
+              
+              const historico = JSON.parse(localStorage.getItem('backup_historico') || '[]');
+              historico.unshift({
+                data: new Date().toISOString(),
+                status: 'sucesso',
+                mensagem: `Backup completo - ${totalItens} itens (${colecoes.length} coleções)`,
+                pasta: pastaBackup,
+                arquivo: nomeArquivo,
+                tamanho: tamanhoKB + ' KB'
+              });
+              localStorage.setItem('backup_historico', JSON.stringify(historico.slice(0, 20)));
+              
+              document.getElementById('ultimo-backup').textContent = new Date().toLocaleString('pt-BR');
+              document.getElementById('ultimo-arquivo-backup').textContent = nomeArquivo;
+              document.getElementById('ultimo-tamanho-backup').textContent = tamanhoKB + ' KB';
+              document.getElementById('backup-arquivo-info').style.display = 'flex';
+              
+              carregarHistorico();
+              atualizarContadorBackups();
+              mostrarProximoBackup();
+            } else {
+              const erroMsg = resultado?.erro || 'Erro desconhecido';
+              showToast('❌ Erro ao salvar backup: ' + erroMsg, 'error');
+              console.error('❌ Erro no salvarArquivo:', resultado);
+              baixarBackupNavegador(jsonData, nomeArquivo, totalItens, tamanhoKB);
+            }
+          } catch (erro) {
+            console.error('❌ Erro no salvarArquivo:', erro);
+            showToast('❌ Erro ao salvar: ' + erro.message, 'error');
+            baixarBackupNavegador(jsonData, nomeArquivo, totalItens, tamanhoKB);
+          }
+        } else {
+          baixarBackupNavegador(jsonData, nomeArquivo, totalItens, tamanhoKB);
+        }
+
+      } catch (erro) {
+        console.error('❌ Erro no backup:', erro);
+        showToast('❌ Erro ao fazer backup: ' + erro.message, 'error');
+      } finally {
+        const btn = document.querySelector('.btn-success');
+        btn.textContent = '📦 Fazer Backup Agora';
+        btn.disabled = false;
+      }
+    }
+
+    function baixarBackupNavegador(jsonData, nomeArquivo, totalItens, tamanhoKB) {
+      try {
+        const blob = new Blob([jsonData], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = nomeArquivo;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setTimeout(() => URL.revokeObjectURL(url), 5000);
+        
+        showToast(`✅ Backup baixado! ${totalItens} itens (${tamanhoKB} KB)`, 'success');
+        
+        const historico = JSON.parse(localStorage.getItem('backup_historico') || '[]');
+        historico.unshift({
+          data: new Date().toISOString(),
+          status: 'sucesso',
+          mensagem: `Backup completo - ${totalItens} itens (download)`,
+          arquivo: nomeArquivo,
+          tamanho: tamanhoKB + ' KB'
+        });
+        localStorage.setItem('backup_historico', JSON.stringify(historico.slice(0, 20)));
+        
+        document.getElementById('ultimo-backup').textContent = new Date().toLocaleString('pt-BR');
+        document.getElementById('ultimo-arquivo-backup').textContent = nomeArquivo;
+        document.getElementById('ultimo-tamanho-backup').textContent = tamanhoKB + ' KB';
+        document.getElementById('backup-arquivo-info').style.display = 'flex';
+        
+        carregarHistorico();
+        atualizarContadorBackups();
+      } catch (erro) {
+        console.error('❌ Erro no download:', erro);
+        showToast('❌ Erro ao baixar backup: ' + erro.message, 'error');
+      }
+    }
+
+    // ============================================
+    // RESTAURAÇÃO SELETIVA (DINÂMICA)
+    // ============================================
+    let dadosBackupCarregado = null;
+    let colecoesDisponiveis = [];
+
+    async function carregarArquivoBackup(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      if (!file.name.endsWith('.json')) {
+        showToast('❌ Por favor, selecione um arquivo .json', 'error');
+        event.target.value = '';
+        return;
+      }
+
+      try {
+        const conteudo = await file.text();
+        const dadosBackup = JSON.parse(conteudo);
+        if (!dadosBackup || typeof dadosBackup !== 'object') {
+          throw new Error('Arquivo de backup inválido');
+        }
+
+        const chaves = Object.keys(dadosBackup).filter(key => !key.startsWith('_'));
+        if (chaves.length === 0) {
+          showToast('❌ Nenhuma coleção encontrada no backup', 'error');
+          event.target.value = '';
+          return;
+        }
+
+        colecoesDisponiveis = [];
+        const listaHtml = [];
+        for (const key of chaves) {
+          if (Array.isArray(dadosBackup[key])) {
+            const count = dadosBackup[key].length;
+            colecoesDisponiveis.push({ nome: key, count: count });
+            listaHtml.push(`
+              <div class="colecao-item">
+                <input type="checkbox" id="colecao-${key}" value="${key}" checked>
+                <label for="colecao-${key}">${key.replace(/_/g, ' ').toUpperCase()}</label>
+                <span class="count">${count} itens</span>
+              </div>
+            `);
+          }
+        }
+
+        if (colecoesDisponiveis.length === 0) {
+          showToast('❌ Nenhuma coleção válida encontrada no backup', 'error');
+          event.target.value = '';
+          return;
+        }
+
+        const container = document.getElementById('restore-selector-container');
+        container.style.display = 'block';
+        document.getElementById('colecoes-lista').innerHTML = listaHtml.join('');
+
+        dadosBackupCarregado = dadosBackup;
+        document.getElementById('restore-file-input').value = '';
+
+        showToast(`📂 Backup carregado com ${colecoesDisponiveis.length} coleções`, 'success');
+
+      } catch (erro) {
+        console.error('Erro ao carregar arquivo:', erro);
+        showToast('❌ Erro ao ler arquivo: ' + erro.message, 'error');
+        event.target.value = '';
+      }
+    }
+
+    function selecionarTodasColecoes(selecionar) {
+      document.querySelectorAll('#colecoes-lista input[type="checkbox"]').forEach(cb => {
+        cb.checked = selecionar;
+      });
+    }
+
+    function cancelarRestauracao() {
+      document.getElementById('restore-selector-container').style.display = 'none';
+      dadosBackupCarregado = null;
+      colecoesDisponiveis = [];
+      document.getElementById('restore-result').className = 'restore-result';
+      document.getElementById('restore-result').style.display = 'none';
+      showToast('🔄 Restauração cancelada', 'warning');
+    }
+
+    async function restaurarSelecionados() {
+      if (!dadosBackupCarregado) {
+        showToast('❌ Nenhum backup carregado', 'error');
+        return;
+      }
+
+      const selecionadas = [];
+      document.querySelectorAll('#colecoes-lista input[type="checkbox"]:checked').forEach(cb => {
+        selecionadas.push(cb.value);
+      });
+
+      if (selecionadas.length === 0) {
+        showToast('⚠️ Selecione pelo menos uma coleção para restaurar', 'warning');
+        return;
+      }
+
+      const nomes = selecionadas.map(n => n.replace(/_/g, ' ').toUpperCase()).join(', ');
+      if (!confirm(`⚠️ ATENÇÃO!\n\nDeseja restaurar as seguintes coleções?\n\n${nomes}\n\nIsso substituirá os dados atuais dessas coleções!\n\nEsta ação NÃO pode ser desfeita!`)) {
+        return;
+      }
+      if (!confirm(`🔴 ÚLTIMA CONFIRMAÇÃO:\n\nRestaurar ${selecionadas.length} coleções selecionadas?`)) {
+        return;
+      }
+
+      const progressDiv = document.getElementById('restore-progress');
+      const progressFill = document.getElementById('restore-progress-fill');
+      const progressText = document.getElementById('restore-progress-text');
+      const resultDiv = document.getElementById('restore-result');
+      const resultTitle = document.getElementById('restore-result-title');
+      const resultDetails = document.getElementById('restore-result-details');
+
+      progressDiv.style.display = 'block';
+      resultDiv.className = 'restore-result';
+      resultDiv.style.display = 'none';
+      progressFill.style.width = '0%';
+      progressText.textContent = '🔄 Preparando restauração...';
+
+      try {
+        let totalRestaurados = 0;
+        let erros = [];
+        let restaurados = 0;
+
+        for (const colecao of selecionadas) {
+          progressText.textContent = `🔄 Restaurando ${colecao}... (${restaurados+1}/${selecionadas.length})`;
+          const dados = dadosBackupCarregado[colecao];
+          if (!Array.isArray(dados)) {
+            erros.push(`${colecao}: dados inválidos`);
+            continue;
+          }
+
+          try {
+            const dadosAtuais = await window.api.buscar(colecao);
+            if (dadosAtuais.sucesso && dadosAtuais.dados) {
+              for (const item of dadosAtuais.dados) {
+                await window.api.deletar(colecao, item._id);
+              }
+            }
+            for (const item of dados) {
+              const { _id, ...dadosSemId } = item;
+              await window.api.salvar(colecao, dadosSemId);
+              totalRestaurados++;
+            }
+            restaurados++;
+            const percent = (restaurados / selecionadas.length) * 100;
+            progressFill.style.width = `${Math.min(percent, 100)}%`;
+          } catch (erro) {
+            erros.push(`${colecao}: ${erro.message}`);
+            console.error(`❌ Erro ao restaurar ${colecao}:`, erro);
+          }
+        }
+
+        progressFill.style.width = '100%';
+        progressText.textContent = '✅ Restauração concluída!';
+
+        resultDiv.className = 'restore-result success';
+        resultDiv.style.display = 'block';
+        resultTitle.textContent = `✅ Restauração concluída!`;
+        let detalhes = `📋 Coleções restauradas: ${selecionadas.join(', ')}\n📦 Itens restaurados: ${totalRestaurados}`;
+        if (erros.length > 0) detalhes += `\n\n⚠️ Erros: ${erros.join('; ')}`;
+        resultDetails.textContent = detalhes;
+
+        showToast(`✅ ${selecionadas.length} coleções restauradas com sucesso!`, 'success');
+
+        document.getElementById('restore-selector-container').style.display = 'none';
+        dadosBackupCarregado = null;
+        colecoesDisponiveis = [];
+
+        setTimeout(() => {
+          if (typeof window.carregarDados === 'function') window.carregarDados();
+          carregarHistorico();
+          atualizarContadorBackups();
+        }, 500);
+
+      } catch (erro) {
+        console.error('❌ Erro na restauração:', erro);
+        resultDiv.className = 'restore-result error';
+        resultDiv.style.display = 'block';
+        resultTitle.textContent = '❌ Erro ao restaurar';
+        resultDetails.textContent = erro.message || 'Erro desconhecido';
+        showToast('❌ Erro na restauração: ' + erro.message, 'error');
+      } finally {
+        setTimeout(() => {
+          progressDiv.style.display = 'none';
+        }, 3000);
+      }
+    }
+
+    // ============================================
+    // HISTÓRICO
+    // ============================================
+    function carregarHistorico() {
+      try {
+        const historico = JSON.parse(localStorage.getItem('backup_historico') || '[]');
+        const container = document.getElementById('backup-history');
+        if (historico.length === 0) {
+          container.innerHTML = `<div class="backup-item"><span style="color: var(--text-muted);">Nenhum backup realizado</span></div>`;
+          return;
+        }
+        if (historico.length > 0 && historico[0].arquivo) {
+          document.getElementById('ultimo-arquivo-backup').textContent = historico[0].arquivo;
+          document.getElementById('ultimo-tamanho-backup').textContent = historico[0].tamanho || '--';
+          document.getElementById('backup-arquivo-info').style.display = 'flex';
+        }
+        container.innerHTML = historico.map(item => `
+          <div class="backup-item">
+            <div class="backup-status">
+              <span class="dot ${item.status}"></span>
+              <span>${new Date(item.data).toLocaleString('pt-BR')}</span>
+            </div>
+            <span>${item.mensagem || 'Backup realizado'}</span>
+            <span style="color: var(--text-muted); font-size:12px;">
+              ${item.arquivo ? `📄 ${item.arquivo}` : ''}
+              ${item.tamanho ? ` (${item.tamanho})` : ''}
+            </span>
+          </div>
+        `).join('');
+      } catch (e) { console.error('Erro ao carregar histórico:', e); }
+    }
+
+    function atualizarContadorBackups() {
+      try {
+        const historico = JSON.parse(localStorage.getItem('backup_historico') || '[]');
+        document.getElementById('total-backups').textContent = historico.length;
+        if (historico.length > 0) {
+          document.getElementById('ultimo-backup').textContent = new Date(historico[0].data).toLocaleString('pt-BR');
+        }
+      } catch (e) {}
+    }
+
+    // ============================================
+    // VERIFICAR BACKUP AUTOMÁTICO
+    // ============================================
+    function verificarBackupAutomatico() {
+      const config = JSON.parse(localStorage.getItem('backup_config') || '{}');
+      if (!config.ativo || config.frequencia === 'desativado') return;
+      const ultimoBackup = localStorage.getItem('ultimo_backup_realizado');
+      const agora = new Date();
+      let deveExecutar = false;
+      if (!ultimoBackup) {
+        deveExecutar = true;
+      } else {
+        const ultimo = new Date(ultimoBackup);
+        const diffDias = (agora - ultimo) / (1000 * 60 * 60 * 24);
+        switch(config.frequencia) {
+          case 'diario': deveExecutar = diffDias >= 1; break;
+          case 'semanal': deveExecutar = diffDias >= 7; break;
+          case 'mensal': deveExecutar = diffDias >= 30; break;
+        }
+      }
+      if (deveExecutar) {
+        const [h, m] = (config.horario || '23:00').split(':');
+        const horaAtual = agora.getHours();
+        const minAtual = agora.getMinutes();
+        const horaConfig = parseInt(h);
+        const minConfig = parseInt(m);
+        if (horaAtual === horaConfig && Math.abs(minAtual - minConfig) <= 5) {
+          fazerBackupAgora();
+          localStorage.setItem('ultimo_backup_realizado', agora.toISOString());
+        }
+      }
+    }
+
+    // ============================================
+    // INICIALIZAÇÃO
+    // ============================================
+    document.addEventListener('DOMContentLoaded', () => {
+      carregarConfigBackup();
+      carregarHistorico();
+      atualizarContadorBackups();
+      mostrarProximoBackup();
+      atualizarPastaBackup();
+      setInterval(verificarBackupAutomatico, 300000);
+      setTimeout(verificarBackupAutomatico, 5000);
+    });
+
+    // ============================================
+    // EXPOSIÇÃO GLOBAL (CORRIGIDO: removeu restaurarBackup)
+    // ============================================
+    window.fazerBackupAgora = fazerBackupAgora;
+    // window.restaurarBackup = restaurarBackup;  // REMOVIDO – função não existe
+    window.carregarArquivoBackup = carregarArquivoBackup;
+    window.selecionarTodasColecoes = selecionarTodasColecoes;
+    window.restaurarSelecionados = restaurarSelecionados;
+    window.cancelarRestauracao = cancelarRestauracao;
+    window.salvarConfigBackup = salvarConfigBackup;
+    window.desativarBackup = desativarBackup;
+    window.fazerLogout = fazerLogout;
+    window.showToast = showToast;
+    window.abrirPastaBackup = abrirPastaBackup;
+    window.copiarCaminhoBackup = copiarCaminhoBackup;
+    window.getBackupPasta = getBackupPasta;
+    window.getNomeArquivoBackup = getNomeArquivoBackup;
+  </script>
+</body>
+</html>

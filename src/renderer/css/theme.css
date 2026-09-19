@@ -1,0 +1,57 @@
+/* Shared SUIT-TECH light/dark theme tokens. Dark remains the default. */
+:root[data-theme="light"] {
+  --bg: #f4f6f8;
+  --bg-2: #e9edf1;
+  --surface: #ffffff;
+  --surface-2: #eef1f4;
+  --surface-3: #e2e7ec;
+  --border: #d4dbe2;
+  --border-2: #c3ccd5;
+  --text: #1f2933;
+  --text-secondary: #52606d;
+  --text-muted: #7b8794;
+  --shadow: 0 4px 24px rgba(31, 41, 51, 0.12);
+  --shadow-hover: 0 8px 40px rgba(31, 41, 51, 0.18);
+}
+
+body.theme-ready {
+  transition: background-color .2s ease, color .2s ease;
+}
+
+#theme-toggle {
+  border: 1px solid var(--border-2);
+  border-radius: 999px;
+  padding: 8px 12px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  font: inherit;
+  max-width: calc(100vw - 32px);
+  white-space: nowrap;
+}
+
+#theme-toggle-container {
+  display: flex;
+  justify-content: flex-start;
+  width: 100%;
+  margin-bottom: 12px;
+}
+
+#theme-toggle {
+  position: static;
+}
+
+#theme-toggle:hover,
+#theme-toggle:focus-visible {
+  border-color: var(--primary);
+  outline: 2px solid var(--primary-light);
+  outline-offset: 2px;
+}
+
+@media (max-width: 700px) {
+  #theme-toggle {
+    padding: 7px 10px;
+    font-size: 12px;
+  }
+}
