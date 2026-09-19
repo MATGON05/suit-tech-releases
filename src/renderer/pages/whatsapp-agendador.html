@@ -1,0 +1,689 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agendador WhatsApp - SUIT-TECH</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <script>
+    (function() {
+      const sessao = localStorage.getItem('sessao_suittech');
+      if (!sessao) { window.location.href = 'login.html'; return; }
+      try {
+        const dados = JSON.parse(sessao);
+        if (!dados.logado) { window.location.href = 'login.html'; return; }
+      } catch (e) { window.location.href = 'login.html'; }
+    })();
+  </script>
+  <style>
+    .agendador-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    .agendador-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+    }
+    .agendador-card h3 {
+      color: var(--text-secondary);
+      font-size: 15px;
+      margin-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 10px;
+    }
+    .imagem-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+      transition: var(--transition);
+    }
+    .imagem-item:hover {
+      background: var(--surface-2);
+    }
+    .imagem-item .preview {
+      width: 40px;
+      height: 40px;
+      border-radius: var(--radius-sm);
+      background: var(--surface-3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    .imagem-item .preview img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .imagem-item .nome {
+      flex: 1;
+      font-size: 13px;
+    }
+    .imagem-item .tamanho {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+    .horario-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .horario-item .time {
+      font-weight: 700;
+      font-size: 16px;
+      color: var(--gold);
+      min-width: 70px;
+    }
+    .horario-item .status {
+      font-size: 12px;
+      padding: 2px 12px;
+      border-radius: 12px;
+    }
+    .status-ativo { background: var(--success-bg); color: var(--success); }
+    .status-inativo { background: var(--danger-bg); color: var(--danger); }
+    .status-agendado { background: var(--warning-bg); color: var(--warning); }
+    .upload-imagem-area {
+      border: 2px dashed var(--border);
+      border-radius: var(--radius-sm);
+      padding: 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: var(--transition);
+      margin-top: 12px;
+    }
+    .upload-imagem-area:hover {
+      border-color: var(--primary);
+      background: var(--surface-2);
+    }
+    .upload-imagem-area .icon {
+      font-size: 32px;
+    }
+    .lista-imagens {
+      max-height: 250px;
+      overflow-y: auto;
+    }
+    .btn-group {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .btn-sm {
+      padding: 4px 10px;
+      font-size: 11px;
+    }
+    @media (max-width: 768px) {
+      .agendador-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+  <link rel="stylesheet" href="../css/tema-novo-overrides.css">
+  <link rel="stylesheet" href="../css/theme.css">
+  <script src="../js/theme.js"></script>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <span class="logo"><img src="../assets/logo.png" alt="SUIT-TECH"></span>
+        <div>
+          <h1>SUIT-TECH</h1>
+          <small>Assistência Técnica</small>
+        </div>
+      </div>
+      <div id="menu-container"></div>
+      <footer class="sidebar-footer">
+        <span>Rodando local</span>
+        <br>
+        <button onclick="fazerLogout()" style="background: none; border: none; color: var(--danger); cursor: pointer; font-size: 12px; margin-top: 8px;">🚪 Sair</button>
+      </footer>
+    </aside>
+
+    <main class="content">
+      <header class="topbar">
+        <div class="topbar-left">
+          <h2>📱 Agendador de Status WhatsApp</h2>
+        </div>
+        <div class="topbar-right">
+          <button class="btn btn-success" onclick="executarAgora()">▶️ Executar Agora</button>
+          <button class="btn btn-primary" onclick="abrirPastaImagens()">📂 Abrir Pasta</button>
+        </div>
+      </header>
+
+      <div class="agendador-grid">
+        <!-- COLUNA 1: GERENCIAR IMAGENS -->
+        <div class="agendador-card">
+          <h3>🖼️ Gerenciar Imagens</h3>
+          
+          <div class="upload-imagem-area" onclick="document.getElementById('upload-imagem').click()">
+            <div class="icon">📤</div>
+            <p style="margin-top:8px;">Clique para adicionar imagens</p>
+            <span style="color:var(--text-muted);font-size:12px;">PNG, JPG, JPEG, GIF</span>
+            <input type="file" id="upload-imagem" accept="image/*" multiple style="display:none" onchange="adicionarImagens(event)">
+          </div>
+
+          <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="btn btn-danger btn-sm" onclick="removerTodasImagens()">🗑️ Remover Todas</button>
+            <span id="total-imagens" style="color:var(--text-muted);font-size:13px; margin-left:auto;">0 imagens</span>
+          </div>
+
+          <div class="lista-imagens" id="lista-imagens">
+            <div style="padding:20px;text-align:center;color:var(--text-muted);">
+              Nenhuma imagem adicionada
+            </div>
+          </div>
+        </div>
+
+        <!-- COLUNA 2: AGENDAR HORÁRIOS -->
+        <div class="agendador-card">
+          <h3>⏰ Agendar Horários</h3>
+          
+          <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px;">
+            <input type="time" id="novo-horario" value="08:00" style="background:var(--bg); border:1px solid var(--border); color:var(--text); padding:6px 10px; border-radius:var(--radius-sm); flex:1;">
+            <button class="btn btn-primary btn-sm" onclick="adicionarHorario()">➕ Adicionar</button>
+          </div>
+
+          <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px;">
+            <button class="btn btn-success btn-sm" onclick="ativarTodosHorarios()">✅ Ativar Todos</button>
+            <button class="btn btn-danger btn-sm" onclick="desativarTodosHorarios()">⏹️ Desativar Todos</button>
+            <button class="btn btn-secondary btn-sm" onclick="limparTodosHorarios()">🗑️ Limpar Todos</button>
+          </div>
+
+          <div id="lista-horarios">
+            <div style="padding:20px;text-align:center;color:var(--text-muted);">
+              Nenhum horário agendado
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- LOG DE EXECUÇÃO -->
+      <div class="panel" style="margin-top:16px;">
+        <h3>📋 Últimas Execuções</h3>
+        <div id="log-execucoes" style="max-height:150px; overflow-y:auto; font-size:13px; color:var(--text-secondary);">
+          <div style="padding:12px; text-align:center; color:var(--text-muted);">Nenhuma execução registrada</div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="../js/api.js"></script>
+  <script src="../js/app.js"></script>
+  <script>
+    // ============================================
+    // TOAST
+    // ============================================
+    function showToast(mensagem, tipo = 'success') {
+      const toast = document.getElementById('toast');
+      if (!toast) return;
+      toast.textContent = mensagem;
+      toast.className = 'toast toast-' + tipo;
+      setTimeout(() => toast.classList.add('show'), 100);
+      setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+
+    function fazerLogout() {
+      if (confirm('Deseja realmente sair?')) {
+        localStorage.removeItem('sessao_suittech');
+        window.location.href = 'login.html';
+      }
+    }
+
+    // ============================================
+    // VARIÁVEIS
+    // ============================================
+    let imagensCache = [];
+    let horariosCache = [];
+    let logCache = [];
+    let intervalosAgendados = [];
+
+    // ============================================
+    // CARREGAR DADOS
+    // ============================================
+    function carregarDados() {
+      try {
+        const imagens = localStorage.getItem('whatsapp_imagens');
+        imagensCache = imagens ? JSON.parse(imagens) : [];
+        
+        const horarios = localStorage.getItem('whatsapp_horarios');
+        horariosCache = horarios ? JSON.parse(horarios) : [];
+        
+        const log = localStorage.getItem('whatsapp_log');
+        logCache = log ? JSON.parse(log) : [];
+        
+        renderizarImagens();
+        renderizarHorarios();
+        renderizarLog();
+        atualizarContadorImagens();
+        iniciarAgendadores();
+      } catch (e) {
+        console.error('Erro ao carregar dados:', e);
+        imagensCache = [];
+        horariosCache = [];
+        logCache = [];
+      }
+    }
+
+    // ============================================
+    // SALVAR DADOS
+    // ============================================
+    function salvarDados() {
+      localStorage.setItem('whatsapp_imagens', JSON.stringify(imagensCache));
+      localStorage.setItem('whatsapp_horarios', JSON.stringify(horariosCache));
+      localStorage.setItem('whatsapp_log', JSON.stringify(logCache.slice(0, 50)));
+    }
+
+    // ============================================
+    // GERENCIAR IMAGENS
+    // ============================================
+    function adicionarImagens(event) {
+      const files = event.target.files;
+      if (!files || files.length === 0) return;
+
+      Array.from(files).forEach(file => {
+        if (!file.type.startsWith('image/')) {
+          showToast(`❌ ${file.name} não é uma imagem`, 'error');
+          return;
+        }
+        
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          imagensCache.push({
+            id: Date.now() + Math.random().toString(36).slice(2),
+            nome: file.name,
+            tamanho: (file.size / 1024).toFixed(1) + ' KB',
+            tipo: file.type,
+            data: e.target.result,
+            dataAdicao: new Date().toISOString()
+          });
+          salvarDados();
+          renderizarImagens();
+          atualizarContadorImagens();
+          showToast(`✅ ${file.name} adicionada!`, 'success');
+        };
+        reader.readAsDataURL(file);
+      });
+
+      event.target.value = '';
+    }
+
+    function removerImagem(id) {
+      if (!confirm('Remover esta imagem?')) return;
+      imagensCache = imagensCache.filter(i => i.id !== id);
+      salvarDados();
+      renderizarImagens();
+      atualizarContadorImagens();
+      showToast('🗑️ Imagem removida!', 'warning');
+    }
+
+    function removerTodasImagens() {
+      if (imagensCache.length === 0) {
+        showToast('❌ Nenhuma imagem para remover', 'warning');
+        return;
+      }
+      if (!confirm(`Remover todas as ${imagensCache.length} imagens?`)) return;
+      imagensCache = [];
+      salvarDados();
+      renderizarImagens();
+      atualizarContadorImagens();
+      showToast('🗑️ Todas as imagens removidas!', 'warning');
+    }
+
+    function atualizarContadorImagens() {
+      document.getElementById('total-imagens').textContent = `${imagensCache.length} imagens`;
+    }
+
+    function renderizarImagens() {
+      const container = document.getElementById('lista-imagens');
+      if (imagensCache.length === 0) {
+        container.innerHTML = `
+          <div style="padding:20px;text-align:center;color:var(--text-muted);">
+            📭 Nenhuma imagem adicionada
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = imagensCache.map(img => `
+        <div class="imagem-item">
+          <div class="preview">
+            <img src="${img.data}" alt="${img.nome}">
+          </div>
+          <span class="nome">${img.nome}</span>
+          <span class="tamanho">${img.tamanho}</span>
+          <button class="btn btn-danger btn-sm" onclick="removerImagem('${img.id}')" title="Remover">✖</button>
+        </div>
+      `).join('');
+    }
+
+    // ============================================
+    // GERENCIAR HORÁRIOS
+    // ============================================
+    function adicionarHorario() {
+      const input = document.getElementById('novo-horario');
+      const horario = input.value;
+      if (!horario) {
+        showToast('❌ Selecione um horário!', 'error');
+        return;
+      }
+
+      // Verifica duplicata
+      if (horariosCache.some(h => h.horario === horario)) {
+        showToast('⚠️ Este horário já está agendado!', 'warning');
+        return;
+      }
+
+      horariosCache.push({
+        id: Date.now().toString(),
+        horario: horario,
+        ativo: true,
+        ultimaExecucao: null,
+        criadoEm: new Date().toISOString()
+      });
+
+      salvarDados();
+      renderizarHorarios();
+      iniciarAgendadores();
+      showToast(`✅ Horário ${horario} adicionado!`, 'success');
+    }
+
+    function removerHorario(id) {
+      horariosCache = horariosCache.filter(h => h.id !== id);
+      salvarDados();
+      renderizarHorarios();
+      iniciarAgendadores();
+      showToast('🗑️ Horário removido!', 'warning');
+    }
+
+    function alternarHorario(id) {
+      const horario = horariosCache.find(h => h.id === id);
+      if (horario) {
+        horario.ativo = !horario.ativo;
+        salvarDados();
+        renderizarHorarios();
+        iniciarAgendadores();
+        showToast(horario.ativo ? '✅ Horário ativado!' : '⏹️ Horário desativado!', 'success');
+      }
+    }
+
+    function ativarTodosHorarios() {
+      horariosCache.forEach(h => h.ativo = true);
+      salvarDados();
+      renderizarHorarios();
+      iniciarAgendadores();
+      showToast('✅ Todos os horários ativados!', 'success');
+    }
+
+    function desativarTodosHorarios() {
+      horariosCache.forEach(h => h.ativo = false);
+      salvarDados();
+      renderizarHorarios();
+      iniciarAgendadores();
+      showToast('⏹️ Todos os horários desativados!', 'warning');
+    }
+
+    function limparTodosHorarios() {
+      if (horariosCache.length === 0) {
+        showToast('❌ Nenhum horário para remover', 'warning');
+        return;
+      }
+      if (!confirm(`Remover todos os ${horariosCache.length} horários?`)) return;
+      horariosCache = [];
+      salvarDados();
+      renderizarHorarios();
+      iniciarAgendadores();
+      showToast('🗑️ Todos os horários removidos!', 'warning');
+    }
+
+    function renderizarHorarios() {
+      const container = document.getElementById('lista-horarios');
+      if (horariosCache.length === 0) {
+        container.innerHTML = `
+          <div style="padding:20px;text-align:center;color:var(--text-muted);">
+            ⏰ Nenhum horário agendado
+          </div>
+        `;
+        return;
+      }
+
+      // Ordena por horário
+      const sorted = [...horariosCache].sort((a, b) => a.horario.localeCompare(b.horario));
+
+      container.innerHTML = sorted.map(h => `
+        <div class="horario-item">
+          <span class="time">${h.horario}</span>
+          <span class="status ${h.ativo ? 'status-ativo' : 'status-inativo'}">
+            ${h.ativo ? '🟢 Ativo' : '🔴 Inativo'}
+          </span>
+          <span style="font-size:11px;color:var(--text-muted);flex:1;">
+            ${h.ultimaExecucao ? `Última: ${new Date(h.ultimaExecucao).toLocaleString('pt-BR')}` : 'Nunca executado'}
+          </span>
+          <div class="btn-group">
+            <button class="btn btn-sm ${h.ativo ? 'btn-warning' : 'btn-success'}" onclick="alternarHorario('${h.id}')">
+              ${h.ativo ? '⏹️' : '▶️'}
+            </button>
+            <button class="btn btn-danger btn-sm" onclick="removerHorario('${h.id}')">✖</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // ============================================
+    // AGENDADOR - VERIFICAR E EXECUTAR
+    // ============================================
+    function iniciarAgendadores() {
+      // Limpa intervalos antigos
+      intervalosAgendados.forEach(intervalo => clearInterval(intervalo));
+      intervalosAgendados = [];
+
+      // Verifica a cada 30 segundos
+      const intervalo = setInterval(() => {
+        verificarHorarios();
+      }, 30000);
+
+      intervalosAgendados.push(intervalo);
+
+      // Verifica imediatamente
+      verificarHorarios();
+    }
+
+    function verificarHorarios() {
+      const agora = new Date();
+      const horaAtual = String(agora.getHours()).padStart(2, '0') + ':' + String(agora.getMinutes()).padStart(2, '0');
+
+      horariosCache.forEach(horario => {
+        if (!horario.ativo) return;
+        if (horario.horario !== horaAtual) return;
+        
+        // Verifica se já executou neste minuto
+        if (horario.ultimaExecucao) {
+          const ultima = new Date(horario.ultimaExecucao);
+          if (ultima.getHours() === agora.getHours() && ultima.getMinutes() === agora.getMinutes()) {
+            return;
+          }
+        }
+
+        // EXECUTA!
+        executarStatus(horario);
+      });
+    }
+
+    // ============================================
+    // EXECUTAR STATUS
+    // ============================================
+    async function executarStatus(horario = null) {
+      if (imagensCache.length === 0) {
+        adicionarLog('⚠️ Nenhuma imagem disponível para postar');
+        return;
+      }
+
+      // Seleciona uma imagem aleatória
+      const imagemSelecionada = imagensCache[Math.floor(Math.random() * imagensCache.length)];
+      
+      adicionarLog(`📤 Postando imagem: ${imagemSelecionada.nome}${horario ? ` às ${horario.horario}` : ' (manual)'}`);
+
+      // Atualiza a última execução do horário
+      if (horario) {
+        horario.ultimaExecucao = new Date().toISOString();
+        salvarDados();
+        renderizarHorarios();
+      }
+
+      // Abre o WhatsApp com a imagem
+      try {
+        // Converte a imagem para um blob
+        const response = await fetch(imagemSelecionada.data);
+        const blob = await response.blob();
+        const file = new File([blob], imagemSelecionada.nome, { type: blob.type });
+
+        // Abre o WhatsApp Web/App com a imagem
+        // O WhatsApp não tem API direta para postar status, então vamos abrir o WhatsApp e mostrar a imagem
+        const mensagem = `📸 *Status Automático SUIT-TECH*\n\n` +
+                         `🕐 ${new Date().toLocaleString('pt-BR')}\n` +
+                         `📸 Imagem: ${imagemSelecionada.nome}\n\n` +
+                         `🛠️ *SUIT-TECH - Assistência Técnica*`;
+
+        // Abre o WhatsApp com a mensagem
+        const numero = '5511999999999'; // Número padrão (seu número ou um número de teste)
+        const msgCodificada = encodeURIComponent(mensagem);
+        const url = `https://wa.me/${numero}?text=${msgCodificada}`;
+        
+        // Tenta abrir o WhatsApp Desktop; usa o navegador como fallback.
+        const appUrl = `whatsapp://send?phone=${numero}&text=${msgCodificada}`;
+        let abriuDesktop = false;
+        try {
+          if (window.electron?.abrirWhatsAppDesktop) {
+            const resultado = await window.electron.abrirWhatsAppDesktop(appUrl);
+            abriuDesktop = !!resultado?.sucesso;
+          }
+        } catch (erroDesktop) {
+          console.warn('WhatsApp Desktop indisponível:', erroDesktop);
+        }
+        if (!abriuDesktop) window.open(url, '_blank');
+
+        // Salva no log
+        adicionarLog(`✅ Status postado: ${imagemSelecionada.nome} com sucesso!`);
+
+        showToast('📸 Status postado com sucesso!', 'success');
+
+      } catch (erro) {
+        console.error('Erro ao postar status:', erro);
+        adicionarLog(`❌ Erro ao postar: ${erro.message}`);
+        showToast('❌ Erro ao postar status!', 'error');
+      }
+    }
+
+    // ============================================
+    // EXECUTAR AGORA (MANUAL)
+    // ============================================
+    function executarAgora() {
+      if (imagensCache.length === 0) {
+        showToast('❌ Nenhuma imagem disponível!', 'error');
+        return;
+      }
+      executarStatus(null);
+    }
+
+    // ============================================
+    // ABRIR PASTA DE IMAGENS
+    // ============================================
+    function abrirPastaImagens() {
+      // Como estamos no Electron, podemos abrir a pasta
+      if (typeof window.api !== 'undefined' && window.api.abrirPasta) {
+        window.api.abrirPasta('imagens');
+      } else {
+        showToast('📂 Função disponível apenas no EXE', 'warning');
+        // Alternativa: baixar todas as imagens em um zip
+        baixarTodasImagens();
+      }
+    }
+
+    function baixarTodasImagens() {
+      if (imagensCache.length === 0) {
+        showToast('❌ Nenhuma imagem para baixar', 'error');
+        return;
+      }
+
+      // Baixa a primeira imagem como exemplo
+      const img = imagensCache[0];
+      const link = document.createElement('a');
+      link.href = img.data;
+      link.download = img.nome;
+      link.click();
+      showToast('📥 Imagem baixada!', 'success');
+    }
+
+    // ============================================
+    // LOG
+    // ============================================
+    function adicionarLog(mensagem) {
+      const entry = {
+        data: new Date().toISOString(),
+        mensagem: mensagem
+      };
+      logCache.unshift(entry);
+      if (logCache.length > 50) {
+        logCache = logCache.slice(0, 50);
+      }
+      salvarDados();
+      renderizarLog();
+    }
+
+    function renderizarLog() {
+      const container = document.getElementById('log-execucoes');
+      if (logCache.length === 0) {
+        container.innerHTML = `
+          <div style="padding:12px; text-align:center; color:var(--text-muted);">Nenhuma execução registrada</div>
+        `;
+        return;
+      }
+
+      container.innerHTML = logCache.map(entry => `
+        <div style="padding:6px 12px; border-bottom: 1px solid var(--border); display:flex; gap:12px; align-items:center;">
+          <span style="font-size:11px; color:var(--text-muted); white-space:nowrap;">
+            ${new Date(entry.data).toLocaleString('pt-BR')}
+          </span>
+          <span style="font-size:13px; color:var(--text-secondary);">${entry.mensagem}</span>
+        </div>
+      `).join('');
+    }
+
+    // ============================================
+    // INICIALIZAÇÃO
+    // ============================================
+    document.addEventListener('DOMContentLoaded', function() {
+      carregarDados();
+    });
+
+    // EXPOSIÇÃO GLOBAL
+    window.adicionarImagens = adicionarImagens;
+    window.removerImagem = removerImagem;
+    window.removerTodasImagens = removerTodasImagens;
+    window.adicionarHorario = adicionarHorario;
+    window.removerHorario = removerHorario;
+    window.alternarHorario = alternarHorario;
+    window.ativarTodosHorarios = ativarTodosHorarios;
+    window.desativarTodosHorarios = desativarTodosHorarios;
+    window.limparTodosHorarios = limparTodosHorarios;
+    window.executarAgora = executarAgora;
+    window.abrirPastaImagens = abrirPastaImagens;
+    window.showToast = showToast;
+    window.fazerLogout = fazerLogout;
+  </script>
+
+  <script src="../js/carregarMenu.js"></script>
+
+  <script src="../js/glitter.js"></script>
+</body>
+</html>

@@ -1,0 +1,296 @@
+// ============================================
+// API.JS - PONTE ENTRE O FRONTEND E O BACKEND
+// ============================================
+
+console.log('📦 API carregando...');
+
+// ============================================
+// FUNÇÕES DE ACESSO AOS DADOS (JSON)
+// ============================================
+
+// Caminho base para os JSONs
+const JSON_PATH = '../../data/json/';
+
+// Função para carregar dados de um JSON
+async function carregarDados(colecao) {
+    try {
+        console.log(`📂 Carregando ${colecao}...`);
+        
+        // Tenta via fetch
+        const response = await fetch(`${JSON_PATH}${colecao}.json`);
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        const dados = await response.json();
+        console.log(`✅ ${colecao} carregado: ${dados.length} itens`);
+        return { sucesso: true, dados: dados };
+    } catch (error) {
+        console.log(`⚠️ Erro ao carregar ${colecao}:`, error.message);
+        
+        // Fallback: tenta via localStorage
+        try {
+            const local = localStorage.getItem(`dados_${colecao}`);
+            if (local) {
+                const dados = JSON.parse(local);
+                console.log(`✅ ${colecao} carregado do localStorage: ${dados.length} itens`);
+                return { sucesso: true, dados: dados };
+            }
+        } catch (e) {}
+        
+        // Retorna vazio
+        return { sucesso: false, dados: [], erro: error.message };
+    }
+}
+
+// Função para salvar dados em um JSON
+async function salvarDados(colecao, dados) {
+    try {
+        console.log(`💾 Salvando ${colecao}...`, dados);
+        
+        // Salva no localStorage como fallback
+        localStorage.setItem(`dados_${colecao}`, JSON.stringify(dados));
+        
+        // Tenta salvar via fetch
+        const response = await fetch(`${JSON_PATH}${colecao}.json`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(dados)
+        });
+        
+        if (response.ok) {
+            console.log(`✅ ${colecao} salvo com sucesso!`);
+            return { sucesso: true, dados: dados };
+        } else {
+            // Mesmo com erro no fetch, os dados estão no localStorage
+            console.log(`⚠️ ${colecao} salvo apenas no localStorage`);
+            return { sucesso: true, dados: dados, aviso: 'Salvo apenas no localStorage' };
+        }
+    } catch (error) {
+        // Fallback: salva no localStorage
+        try {
+            localStorage.setItem(`dados_${colecao}`, JSON.stringify(dados));
+            console.log(`✅ ${colecao} salvo no localStorage (fallback)`);
+            return { sucesso: true, dados: dados, aviso: 'Salvo no localStorage (fallback)' };
+        } catch (e) {
+            console.error(`❌ Erro ao salvar ${colecao}:`, error.message);
+            return { sucesso: false, dados: [], erro: error.message };
+        }
+    }
+}
+
+// ============================================
+// API PRINCIPAL
+// ============================================
+
+const api = {
+    // Buscar dados de uma coleção
+    buscar: async function(colecao) {
+        return await carregarDados(colecao);
+    },
+    
+    // Salvar dados em uma coleção
+    salvar: async function(colecao, dados) {
+        // Busca dados existentes
+        const resultado = await carregarDados(colecao);
+        let lista = resultado.sucesso ? resultado.dados : [];
+        
+        // Adiciona ID se não tiver
+        if (!dados._id) {
+            dados._id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+        }
+        
+        // Adiciona à lista
+        lista.push(dados);
+        
+        // Salva
+        return await salvarDados(colecao, lista);
+    },
+    
+    // Atualizar um item
+    atualizar: async function(colecao, id, dados) {
+        const resultado = await carregarDados(colecao);
+        if (!resultado.sucesso) {
+            return { sucesso: false, erro: 'Não foi possível carregar os dados' };
+        }
+        
+        let lista = resultado.dados;
+        const index = lista.findIndex(item => item._id === id);
+        if (index === -1) {
+            return { sucesso: false, erro: 'Item não encontrado' };
+        }
+        
+        // Mantém o _id
+        dados._id = id;
+        lista[index] = dados;
+        
+        return await salvarDados(colecao, lista);
+    },
+    
+    // Deletar um item
+    deletar: async function(colecao, id) {
+        const resultado = await carregarDados(colecao);
+        if (!resultado.sucesso) {
+            return { sucesso: false, erro: 'Não foi possível carregar os dados' };
+        }
+        
+        let lista = resultado.dados;
+        lista = lista.filter(item => item._id !== id);
+        
+        return await salvarDados(colecao, lista);
+    },
+    
+    // Backup
+    backup: async function() {
+        try {
+            const colecoes = ['vendas', 'caixa_entrada', 'caixa_saida', 'clientes', 
+                            'contas_pagar', 'valores_receber', 'comissoes', 
+                            'devolucoes', 'agendamentos', 'lixeira'];
+            
+            const dadosBackup = {};
+            let totalItens = 0;
+            
+            for (const colecao of colecoes) {
+                const resultado = await carregarDados(colecao);
+                dadosBackup[colecao] = resultado.sucesso ? resultado.dados : [];
+                totalItens += dadosBackup[colecao].length;
+            }
+            
+            // Salva o backup no localStorage
+            localStorage.setItem('backup_completo', JSON.stringify(dadosBackup));
+            localStorage.setItem('ultimo_backup', new Date().toISOString());
+            
+            return {
+                sucesso: true,
+                mensagem: `Backup concluído! ${totalItens} itens salvos`,
+                dados: dadosBackup
+            };
+        } catch (error) {
+            return { sucesso: false, erro: error.message };
+        }
+    },
+    
+    // Fotos (para orçamentos)
+    salvarFoto: async function(os, dataUrl) {
+        try {
+            // Salva no localStorage
+            const fotos = JSON.parse(localStorage.getItem(`fotos_${os}`) || '[]');
+            const id = Date.now().toString(36);
+            fotos.push({
+                id: id,
+                data: dataUrl,
+                nome: `foto_${id}.jpg`,
+                dataCriacao: new Date().toISOString()
+            });
+            localStorage.setItem(`fotos_${os}`, JSON.stringify(fotos));
+            return { sucesso: true, id: id };
+        } catch (error) {
+            return { sucesso: false, erro: error.message };
+        }
+    },
+    
+    listarFotos: async function(os) {
+        try {
+            const fotos = JSON.parse(localStorage.getItem(`fotos_${os}`) || '[]');
+            return { 
+                sucesso: true, 
+                fotos: fotos.map(f => ({
+                    nome: f.nome,
+                    caminho: f.data,
+                    data: f.dataCriacao
+                }))
+            };
+        } catch (error) {
+            return { sucesso: false, erro: error.message, fotos: [] };
+        }
+    },
+    
+    deletarFoto: async function(os, nome) {
+        try {
+            let fotos = JSON.parse(localStorage.getItem(`fotos_${os}`) || '[]');
+            fotos = fotos.filter(f => f.nome !== nome);
+            localStorage.setItem(`fotos_${os}`, JSON.stringify(fotos));
+            return { sucesso: true };
+        } catch (error) {
+            return { sucesso: false, erro: error.message };
+        }
+    },
+    
+    abrirPastaAnexos: async function(os) {
+        // No navegador, só mostra mensagem
+        const fotos = JSON.parse(localStorage.getItem(`fotos_${os}`) || '[]');
+        if (fotos.length === 0) {
+            return { sucesso: false, erro: 'Nenhuma foto encontrada' };
+        }
+        // Abre a primeira foto em nova janela
+        window.open(fotos[0].data, '_blank');
+        return { sucesso: true };
+    },
+    
+    // Configuração de rede
+    configLer: async function() {
+        try {
+            const config = JSON.parse(localStorage.getItem('config_rede') || '{"modo":"local","caminhoRede":""}');
+            return { sucesso: true, dados: config };
+        } catch (error) {
+            return { sucesso: false, erro: error.message };
+        }
+    },
+    
+    configSalvar: async function(config) {
+        try {
+            localStorage.setItem('config_rede', JSON.stringify(config));
+            return { sucesso: true };
+        } catch (error) {
+            return { sucesso: false, erro: error.message };
+        }
+    },
+    
+    configTestar: async function(caminho) {
+        // Simula teste de conexão
+        try {
+            if (caminho && caminho.length > 0) {
+                return { sucesso: true, mensagem: 'Caminho válido' };
+            }
+            return { sucesso: false, erro: 'Caminho inválido' };
+        } catch (error) {
+            return { sucesso: false, erro: error.message };
+        }
+    },
+    
+    // Usuários
+    usuariosBuscar: async function() {
+        try {
+            const usuarios = JSON.parse(localStorage.getItem('usuarios_suittech') || 
+                '[{"id":"1","usuario":"admin","nome":"Administrador","senha":"admin123"}]');
+            return { sucesso: true, dados: usuarios };
+        } catch (error) {
+            return { sucesso: false, dados: [], erro: error.message };
+        }
+    },
+    
+    usuariosSalvar: async function(usuarios) {
+        try {
+            localStorage.setItem('usuarios_suittech', JSON.stringify(usuarios));
+            return { sucesso: true };
+        } catch (error) {
+            return { sucesso: false, erro: error.message };
+        }
+    }
+};
+
+// ============================================
+// EXPOSIÇÃO GLOBAL
+// ============================================
+
+// Torna a API global
+window.api = api;
+
+console.log('✅ API carregada com sucesso!');
+console.log('📋 Funções disponíveis:');
+console.log('  - api.buscar(colecao)');
+console.log('  - api.salvar(colecao, dados)');
+console.log('  - api.atualizar(colecao, id, dados)');
+console.log('  - api.deletar(colecao, id)');
+console.log('  - api.backup()');
+console.log('  - api.usuariosBuscar()');
+console.log('  - api.usuariosSalvar(usuarios)');

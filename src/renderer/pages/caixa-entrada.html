@@ -1,0 +1,548 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Caixa Entrada - SUIT-TECH</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    (function() {
+      const sessao = localStorage.getItem('sessao_suittech');
+      if (!sessao) { window.location.href = 'login.html'; return; }
+      try {
+        const dados = JSON.parse(sessao);
+        if (!dados.logado) { window.location.href = 'login.html'; return; }
+      } catch (e) { window.location.href = 'login.html'; }
+    })();
+  </script>
+  <link rel="stylesheet" href="../css/tema-novo-overrides.css">
+  <link rel="stylesheet" href="../css/theme.css">
+  <script src="../js/theme.js"></script>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <span class="logo"><img src="../assets/logo.png" alt="SUIT-TECH"></span>
+        <div>
+          <h1>SUIT-TECH</h1>
+          <small>Assistência Técnica</small>
+        </div>
+      </div>
+      <div id="menu-container"></div>
+      <footer class="sidebar-footer">
+        <span>Rodando local</span><br>
+        <button onclick="fazerLogout()" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:12px;margin-top:8px;">🚪 Sair</button>
+      </footer>
+    </aside>
+
+    <main class="content">
+      <header class="topbar">
+        <div class="topbar-left"><h2>💰 Caixa Entrada</h2></div>
+        <div class="topbar-right">
+          <button class="btn btn-primary" onclick="openCashInModal()">+ Nova Entrada</button>
+          <button class="btn btn-success" onclick="recarregarDados()">🔄 Atualizar</button>
+        </div>
+      </header>
+
+      <section class="panel">
+        <div class="toolbar">
+          <select id="filter-in-month" onchange="loadCashIn()">
+            <option value="1">Janeiro</option><option value="2">Fevereiro</option>
+            <option value="3">Março</option><option value="4">Abril</option>
+            <option value="5">Maio</option><option value="6">Junho</option>
+            <option value="7">Julho</option><option value="8">Agosto</option>
+            <option value="9">Setembro</option><option value="10">Outubro</option>
+            <option value="11">Novembro</option><option value="12">Dezembro</option>
+          </select>
+          <input type="number" id="filter-in-year" value="2026" onchange="loadCashIn()" style="width:100px;">
+          <span style="color: var(--text-muted); font-size: 13px;" id="cashin-count">0 entradas</span>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-card accent-gold"><span class="stat-label">Total Vendas</span><strong class="stat-value" id="in-total-sales">R$ 0,00</strong></div>
+          <div class="stat-card accent-orange"><span class="stat-label">Total Custos</span><strong class="stat-value" id="in-total-cost">R$ 0,00</strong></div>
+          <div class="stat-card accent-green"><span class="stat-label">Lucro Total</span><strong class="stat-value" id="in-total-profit">R$ 0,00</strong></div>
+        </div>
+
+        <div class="chart-wrapper" style="margin:20px 0; max-height:300px">
+          <canvas id="cashInChart"></canvas>
+        </div>
+
+        <div class="table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Data</th>
+                <th>Cliente</th>
+                <th>Descrição</th>
+                <th>Tipo</th>
+                <th>Venda total</th>
+                <th>Mão de obra</th>
+                <th>Peças</th>
+                <th>Custo peças</th>
+                <th>Qtd. peças</th>
+                <th>Custo total</th>
+                <th>Lucro</th>
+                <th>Conta</th>
+                <th>Forma</th>
+                <th>Rec.</th>
+                <th class="actions">Ações</th>
+              </tr>
+            </thead>
+            <tbody id="cash-in-table">
+              <tr><td colspan="15" class="empty">Carregando...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- MODAL -->
+  <div id="cash-in-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="cash-in-modal-title">Nova Entrada</h3>
+        <button class="close" onclick="closeCashInModal()">&times;</button>
+      </div>
+      <form id="cash-in-form" onsubmit="saveCashIn(event)">
+        <input type="hidden" id="cash-in-id">
+        <div class="form-grid">
+          <div class="form-group"><label>Data *</label><input type="date" id="cash-in-date" required></div>
+          <div class="form-group"><label>Tipo *</label><select id="cash-in-type" required><option value="servico">Serviço</option><option value="produto">Produto</option></select></div>
+          <div class="form-group span-2"><label>Descrição *</label><input type="text" id="cash-in-description" required></div>
+          <div class="form-group"><label>Valor Bruto (R$) *</label><input type="number" step="0.01" id="cash-in-sale" required oninput="calcCashInProfit()"></div>
+          <div class="form-group"><label>Custo (R$)</label><input type="number" step="0.01" id="cash-in-cost" value="0" oninput="calcCashInProfit()"></div>
+          <div class="form-group"><label>Lucro (R$)</label><input type="text" id="cash-in-profit" readonly></div>
+          <div class="form-group"><label>Conta Destino</label><select id="cash-in-conta"></select></div>
+          <div class="form-group"><label>Categoria</label><select id="cash-in-categoria"></select></div>
+          <div class="form-group"><label>Forma Pag.</label><select id="cash-in-forma"><option value="dinheiro">Dinheiro</option><option value="pix">PIX</option><option value="debito">Débito</option><option value="credito">Crédito</option><option value="transferencia">Transferência</option></select></div>
+          <div class="form-group"><label>Desconto (R$)</label><input type="number" step="0.01" id="cash-in-desconto" value="0" oninput="calcCashInProfit()"></div>
+          <div class="form-group"><label>Taxa (R$)</label><input type="number" step="0.01" id="cash-in-taxa" value="0" oninput="calcCashInProfit()"></div>
+          <div class="form-group"><label>Valor Líquido</label><input type="text" id="cash-in-liquido" readonly></div>
+          <div class="form-group span-2"><label>Observação</label><textarea id="cash-in-obs" rows="2"></textarea></div>
+          
+          <!-- NOVOS CAMPOS: comprovante e recorrente -->
+          <div class="form-group span-2">
+            <label>📎 Comprovante</label>
+            <input type="file" id="cash-in-comprovante" accept="image/*,.pdf" onchange="previewComprovante(event)">
+            <div id="preview-comprovante" style="margin-top:6px;"></div>
+          </div>
+          <div class="form-group span-2">
+            <label><input type="checkbox" id="cash-in-recorrente"> Lançamento Recorrente (mensal)</label>
+          </div>
+          <!-- Campo para cliente (opcional, para manual) -->
+          <div class="form-group span-2">
+            <label>👤 Cliente (opcional)</label>
+            <select id="cash-in-cliente"><option value="">Selecione um cliente...</option></select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn" onclick="closeCashInModal()">Cancelar</button>
+          <button type="submit" class="btn btn-primary">💾 Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="../js/api.js"></script>
+  <script src="../js/app.js"></script>
+  <script src="../js/utils.js"></script>
+  <script>
+    let cashInCache = [], cashInChart = null;
+
+    // ============================================
+    // PREVIEW DO COMPROVANTE
+    // ============================================
+    function previewComprovante(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(ev) {
+        document.getElementById('preview-comprovante').innerHTML = `<img src="${ev.target.result}" style="max-height:80px;border-radius:4px;border:1px solid var(--border);">`;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // ============================================
+    // CÁLCULO DE LUCRO
+    // ============================================
+    function calcCashInProfit() {
+      const sale = parseFloat(document.getElementById('cash-in-sale').value) || 0;
+      const cost = parseFloat(document.getElementById('cash-in-cost').value) || 0;
+      const desconto = parseFloat(document.getElementById('cash-in-desconto').value) || 0;
+      const taxa = parseFloat(document.getElementById('cash-in-taxa').value) || 0;
+      const liquido = sale - desconto - taxa;
+      document.getElementById('cash-in-profit').value = (liquido - cost).toFixed(2);
+      document.getElementById('cash-in-liquido').value = liquido.toFixed(2);
+    }
+
+    // ============================================
+    // CARREGAR DADOS
+    // ============================================
+    async function loadCashIn() {
+      try {
+        const result = await window.api.buscar('caixa_entrada');
+        cashInCache = result.sucesso ? result.dados : [];
+        renderCashIn();
+        atualizarResumoEntradas();
+      } catch(e) {
+        console.error('Erro ao carregar caixa entrada:', e);
+        cashInCache = [];
+        renderCashIn();
+      }
+    }
+
+    // ============================================
+    // RENDERIZAR TABELA
+    // ============================================
+    function renderCashIn() {
+      const month = document.getElementById('filter-in-month').value;
+      const year = document.getElementById('filter-in-year').value;
+      const tbody = document.getElementById('cash-in-table');
+      const countEl = document.getElementById('cashin-count');
+      
+      let filtered = cashInCache;
+      if (month && year) {
+        filtered = cashInCache.filter(item => {
+          if (!item.data) return false;
+          const d = new Date(item.data);
+          return d.getFullYear() == year && (d.getMonth() + 1) == month;
+        });
+      }
+      
+      // Ordena por data (mais recente primeiro)
+      filtered.sort((a, b) => (a.data > b.data ? -1 : 1));
+
+      countEl.textContent = `${filtered.length} entradas`;
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="15" class="empty">Nenhuma entrada</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = filtered.map(item => {
+        // Tentar obter nome do cliente (pode vir de cliente_nome ou de cliente_id)
+        let clienteNome = item.cliente_nome || '-';
+        // Se tiver cliente_id, buscar nome no cache de clientes (opcional)
+        if (item.cliente_id && clienteNome === '-') {
+          // Poderíamos buscar na lista de clientes, mas não temos acesso aqui, então mantemos o ID
+          clienteNome = 'ID: ' + item.cliente_id.slice(-4);
+        }
+        // Verifica se o item contém a lista de produtos (itens)
+        let produtosInfo = '';
+        if (item.itens && Array.isArray(item.itens) && item.itens.length > 0) {
+          produtosInfo = item.itens.map(i => `${i.nome}(${i.quantidade})`).join(', ');
+        }
+        // Monta a descrição combinada: descrição original + produtos
+        let descricao = item.descricao || '-';
+        if (produtosInfo && !descricao.includes(produtosInfo)) {
+          descricao += ' [' + produtosInfo + ']';
+        }
+
+        return `
+          <tr>
+            <td>${item.data || '-'}</td>
+            <td>${clienteNome}</td>
+            <td>${descricao}</td>
+            <td>${item.tipo === 'servico' ? '🔧 Serviço' : '📦 Produto'}</td>
+            <td>R$ ${(Number(item.venda || 0)).toFixed(2).replace('.', ',')}</td>
+            <td>R$ ${(Number(item.valor_mao_obra || (item.tipo === 'servico' ? (item.venda || 0) - (item.valor_pecas || 0) : 0))).toFixed(2).replace('.', ',')}</td>
+            <td>R$ ${(Number(item.valor_pecas || 0)).toFixed(2).replace('.', ',')}</td>
+            <td>R$ ${(Number(item.custo_pecas || 0)).toFixed(2).replace('.', ',')}</td>
+            <td>${Number(item.quantidade_pecas || (item.itens || []).reduce((t,i)=>t+(Number(i.quantidade)||0),0))}</td>
+            <td>R$ ${(Number(item.custo || 0)).toFixed(2).replace('.', ',')}</td>
+            <td style="color:${(item.lucro||0)>=0?'#22c55e':'#ef4444'}">R$ ${(item.lucro||0).toFixed(2).replace('.', ',')}</td>
+            <td>${item.conta_nome || '-'}</td>
+            <td>${item.forma_pagamento || '-'}</td>
+            <td>${item.recorrente ? '🔄' : ''}</td>
+            <td class="actions">
+              <button class="btn btn-primary" onclick="editCashIn('${item._id}')" title="Editar">✏️</button>
+              <button class="btn btn-danger" onclick="deleteCashIn('${item._id}')" title="Excluir">🗑️</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // ============================================
+    // RESUMO DOS CARDS
+    // ============================================
+    function atualizarResumoEntradas() {
+      const month = document.getElementById('filter-in-month').value;
+      const year = document.getElementById('filter-in-year').value;
+      let filtered = cashInCache;
+      if (month && year) {
+        filtered = cashInCache.filter(item => {
+          if (!item.data) return false;
+          const d = new Date(item.data);
+          return d.getFullYear() == year && (d.getMonth() + 1) == month;
+        });
+      }
+      let totalVendas = 0, totalCustos = 0, totalLucro = 0;
+      filtered.forEach(item => {
+        totalVendas += item.venda || 0;
+        totalCustos += item.custo || 0;
+        totalLucro += item.lucro || 0;
+      });
+      document.getElementById('in-total-sales').textContent = `R$ ${totalVendas.toFixed(2).replace('.', ',')}`;
+      document.getElementById('in-total-cost').textContent = `R$ ${totalCustos.toFixed(2).replace('.', ',')}`;
+      document.getElementById('in-total-profit').textContent = `R$ ${totalLucro.toFixed(2).replace('.', ',')}`;
+      
+      // GRÁFICO
+      const ctx = document.getElementById('cashInChart')?.getContext('2d');
+      if (ctx) {
+        if (cashInChart) cashInChart.destroy();
+        const dias = filtered.map(i => i.data).sort();
+        const valores = dias.map(d => filtered.find(i => i.data === d)?.venda || 0);
+        if (dias.length > 0) {
+          cashInChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+              labels: dias.map(d => d.slice(5)), // formato MM-DD
+              datasets: [{ label: 'Vendas', data: valores, backgroundColor: '#22c55e', borderRadius: 6 }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: { legend: { display: false } },
+              scales: { y: { beginAtZero: true, ticks: { color: '#8899bb' } }, x: { ticks: { color: '#8899bb' } } }
+            }
+          });
+        } else {
+          // Gráfico vazio
+          cashInChart = new Chart(ctx, {
+            type: 'bar',
+            data: { labels: ['Sem dados'], datasets: [{ data: [0], backgroundColor: '#2a3344' }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+          });
+        }
+      }
+    }
+
+    // ============================================
+    // RECARREGAR DADOS (botão)
+    // ============================================
+    function recarregarDados() {
+      showToast('⏳ Atualizando...', 'warning');
+      loadCashIn().then(() => {
+        showToast('✅ Dados atualizados!', 'success');
+      });
+    }
+
+    // ============================================
+    // MODAL - ABRIR/FECHAR
+    // ============================================
+    function openCashInModal(item = null) {
+      document.getElementById('cash-in-modal-title').textContent = item ? '✏️ Editar Entrada' : '➕ Nova Entrada';
+      document.getElementById('cash-in-id').value = item ? item._id : '';
+      document.getElementById('cash-in-date').value = item ? item.data : dataLocalHojeISO();
+      document.getElementById('cash-in-type').value = item ? item.tipo || 'servico' : 'servico';
+      document.getElementById('cash-in-description').value = item ? item.descricao : '';
+      document.getElementById('cash-in-sale').value = item ? item.venda || '' : '';
+      document.getElementById('cash-in-cost').value = item ? item.custo || '' : '';
+      document.getElementById('cash-in-desconto').value = item ? item.desconto || 0 : 0;
+      document.getElementById('cash-in-taxa').value = item ? item.taxa || 0 : 0;
+      document.getElementById('cash-in-obs').value = item ? item.observacao || '' : '';
+      document.getElementById('cash-in-recorrente').checked = item ? item.recorrente || false : false;
+      document.getElementById('preview-comprovante').innerHTML = item && item.comprovante ? `<img src="${item.comprovante}" style="max-height:80px;border-radius:4px;border:1px solid var(--border);">` : '';
+      
+      // Carregar selects de conta, categoria e clientes
+      window.carregarContasSelect('cash-in-conta', item ? item.conta_id : '');
+      window.carregarCategoriasSelect('cash-in-categoria', item ? item.categoria : '');
+      window.carregarClientesSelect('cash-in-cliente', item ? item.cliente_id : '');
+      
+      document.getElementById('cash-in-forma').value = item ? item.forma_pagamento || 'dinheiro' : 'dinheiro';
+      calcCashInProfit();
+      document.getElementById('cash-in-modal').classList.add('open');
+    }
+
+    // Função auxiliar para popular select de clientes no modal
+    window.carregarClientesSelect = async function(selectId, selectedValue = '') {
+      const select = document.getElementById(selectId);
+      if (!select) return;
+      try {
+        const result = await window.api.buscar('clientes');
+        const clientes = result.sucesso ? result.dados : [];
+        select.innerHTML = '<option value="">Selecione um cliente...</option>';
+        clientes.forEach(c => {
+          const opt = document.createElement('option');
+          opt.value = c._id;
+          opt.textContent = c.nome + (c.telefone ? ' - ' + c.telefone : '');
+          if (opt.value === selectedValue) opt.selected = true;
+          select.appendChild(opt);
+        });
+      } catch (e) {
+        console.error('Erro ao carregar clientes:', e);
+      }
+    };
+
+    function closeCashInModal() {
+      document.getElementById('cash-in-modal').classList.remove('open');
+    }
+
+    // ============================================
+    // SALVAR ENTRADA (com cliente opcional)
+    // ============================================
+    let salvandoEntrada = false;
+    async function saveCashIn(e) {
+      e.preventDefault();
+      if (salvandoEntrada) return;
+      salvandoEntrada = true;
+      const botaoSalvar = document.querySelector('#cash-in-form button[type="submit"]');
+      if (botaoSalvar) botaoSalvar.disabled = true;
+      try {
+      const id = document.getElementById('cash-in-id').value;
+      const sale = parseFloat(document.getElementById('cash-in-sale').value) || 0;
+      const cost = parseFloat(document.getElementById('cash-in-cost').value) || 0;
+      const desconto = parseFloat(document.getElementById('cash-in-desconto').value) || 0;
+      const taxa = parseFloat(document.getElementById('cash-in-taxa').value) || 0;
+      const liquido = sale - desconto - taxa;
+      const lucro = liquido - cost;
+      
+      // Comprovante
+      const comprovanteFile = document.getElementById('cash-in-comprovante').files[0];
+      let comprovanteData = '';
+      if (comprovanteFile) {
+        comprovanteData = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = (e) => resolve(e.target.result);
+          reader.readAsDataURL(comprovanteFile);
+        });
+      }
+      
+      // Cliente
+      const clienteId = document.getElementById('cash-in-cliente').value;
+      let clienteNome = '';
+      if (clienteId) {
+        const clientesResult = await window.api.buscar('clientes');
+        const cliente = clientesResult.dados.find(c => c._id === clienteId);
+        if (cliente) clienteNome = cliente.nome;
+      }
+
+      const body = {
+        data: document.getElementById('cash-in-date').value,
+        tipo: document.getElementById('cash-in-type').value,
+        descricao: document.getElementById('cash-in-description').value.trim(),
+        venda: sale,
+        custo: cost,
+        lucro: lucro,
+        desconto: desconto,
+        taxa: taxa,
+        valor_liquido: liquido,
+        conta_id: document.getElementById('cash-in-conta').value,
+        categoria: document.getElementById('cash-in-categoria').value,
+        forma_pagamento: document.getElementById('cash-in-forma').value,
+        observacao: document.getElementById('cash-in-obs').value.trim(),
+        recorrente: document.getElementById('cash-in-recorrente').checked,
+        comprovante: comprovanteData || (document.getElementById('cash-in-id').value ? null : ''),
+        cliente_id: clienteId || '',
+        cliente_nome: clienteNome || '',
+        conta_nome: '',
+        status: 'confirmado'
+      };
+
+      // Buscar nome da conta
+      if (body.conta_id) {
+        const contas = await window.api.contasBuscar();
+        const conta = contas.dados.find(c => c._id === body.conta_id);
+        if (conta) body.conta_nome = conta.nome;
+      }
+
+      if (!body.descricao || !body.data) {
+        showToast('❌ Preencha todos os campos!', 'error');
+        return;
+      }
+
+        let resultado;
+        if (id) {
+          resultado = await window.api.atualizar('caixa_entrada', id, body);
+        } else {
+          resultado = await window.api.salvar('caixa_entrada', body);
+        }
+        if (resultado.sucesso) {
+          closeCashInModal();
+          showToast('✅ Entrada salva!', 'success');
+          await loadCashIn();
+        } else {
+          showToast('❌ Erro: ' + resultado.erro, 'error');
+        }
+      } catch(e) {
+        console.error(e);
+        showToast('❌ Erro: ' + e.message, 'error');
+      } finally {
+        salvandoEntrada = false;
+        if (botaoSalvar) botaoSalvar.disabled = false;
+      }
+    }
+
+    // ============================================
+    // EDITAR E EXCLUIR
+    // ============================================
+    async function editCashIn(id) {
+      const item = cashInCache.find(x => x._id === id);
+      if (item) openCashInModal(item);
+      else showToast('❌ Entrada não encontrada', 'error');
+    }
+
+    async function deleteCashIn(id) {
+      if (!confirm('Excluir esta entrada?')) return;
+      const resultado = await window.api.deletar('caixa_entrada', id);
+      if (resultado.sucesso) {
+        showToast('✅ Excluída!', 'success');
+        await loadCashIn();
+      } else {
+        showToast('❌ Erro: ' + resultado.erro, 'error');
+      }
+    }
+
+    // ============================================
+    // ATUALIZAÇÃO AUTOMÁTICA AO FOCAR NA ABA
+    // ============================================
+    document.addEventListener('visibilitychange', function() {
+      if (document.visibilityState === 'visible') {
+        loadCashIn();
+      }
+    });
+
+    // ============================================
+    // FECHAR MODAL CLICANDO FORA
+    // ============================================
+    document.addEventListener('click', function(e) {
+      if (e.target.classList.contains('modal')) e.target.classList.remove('open');
+    });
+
+    // ============================================
+    // INICIALIZAÇÃO
+    // ============================================
+    document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('filter-in-month').value = String(new Date().getMonth() + 1);
+      document.getElementById('filter-in-year').value = new Date().getFullYear();
+      loadCashIn();
+    });
+
+    // ============================================
+    // EXPOSIÇÃO GLOBAL
+    // ============================================
+    window.loadCashIn = loadCashIn;
+    window.renderCashIn = renderCashIn;
+    window.openCashInModal = openCashInModal;
+    window.closeCashInModal = closeCashInModal;
+    window.saveCashIn = saveCashIn;
+    window.editCashIn = editCashIn;
+    window.deleteCashIn = deleteCashIn;
+    window.calcCashInProfit = calcCashInProfit;
+    window.recarregarDados = recarregarDados;
+    window.previewComprovante = previewComprovante;
+    window.showToast = showToast;
+    window.fazerLogout = fazerLogout;
+  </script>
+
+  <script src="../js/carregarMenu.js"></script>
+  <script src="../js/glitter.js"></script>
+</body>
+</html>
