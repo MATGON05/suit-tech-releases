@@ -1,0 +1,478 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ferramentas - SUIT-TECH</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <script>
+    (function() {
+      const sessao = localStorage.getItem('sessao_suittech');
+      if (!sessao) { window.location.href = 'login.html'; return; }
+      try {
+        const dados = JSON.parse(sessao);
+        if (!dados.logado) { window.location.href = 'login.html'; return; }
+        if (dados.perfil !== 'admin' && dados.usuario !== 'admin') {
+          alert('⚠️ Apenas o Administrador pode acessar esta página!');
+          window.location.href = 'index.html';
+        }
+      } catch (e) { window.location.href = 'login.html'; }
+    })();
+  </script>
+  <style>
+    .ferramenta-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      margin-bottom: 20px;
+      max-width: 700px;
+    }
+    .ferramenta-card h3 {
+      color: var(--text-secondary);
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 10px;
+      margin-bottom: 16px;
+    }
+    .ferramenta-card .aviso {
+      background: var(--danger-bg);
+      border-left: 4px solid var(--danger);
+      padding: 12px 16px;
+      border-radius: var(--radius-sm);
+      margin: 12px 0;
+      color: var(--danger);
+    }
+    .btn-danger {
+      background: var(--danger);
+      color: #fff;
+      padding: 12px 24px;
+      font-size: 16px;
+      border: none;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: var(--transition);
+    }
+    .btn-danger:hover {
+      background: #dc2626;
+      transform: scale(1.02);
+    }
+    .btn-danger:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+    .btn-success {
+      background: var(--success);
+      color: #fff;
+      padding: 10px 20px;
+      border: none;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: var(--transition);
+    }
+    .btn-success:hover {
+      background: #16a34a;
+    }
+    .resultado {
+      margin-top: 12px;
+      padding: 12px;
+      border-radius: var(--radius-sm);
+      display: none;
+    }
+    .resultado.sucesso {
+      display: block;
+      background: var(--success-bg);
+      border: 1px solid var(--success);
+      color: var(--success);
+    }
+    .resultado.erro {
+      display: block;
+      background: var(--danger-bg);
+      border: 1px solid var(--danger);
+      color: var(--danger);
+    }
+    .resultado .detalhes {
+      font-size: 13px;
+      margin-top: 6px;
+      opacity: 0.8;
+    }
+    .checkbox-group {
+      margin: 12px 0;
+    }
+    .checkbox-group label {
+      display: block;
+      margin: 4px 0;
+      color: var(--text-secondary);
+    }
+    .checkbox-group input[type="checkbox"] {
+      margin-right: 8px;
+    }
+  </style>
+  <link rel="stylesheet" href="../css/tema-novo-overrides.css">
+  <link rel="stylesheet" href="../css/theme.css">
+  <script src="../js/theme.js"></script>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <span class="logo"><img src="../assets/logo.png" alt="SUIT-TECH"></span>
+        <div><h1>SUIT-TECH</h1><small>Assistência Técnica</small></div>
+      </div>
+      <div id="menu-container"></div>
+      <footer class="sidebar-footer">
+        <span>Rodando local</span><br>
+        <button onclick="fazerLogout()" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:12px;margin-top:8px;">🚪 Sair</button>
+      </footer>
+    </aside>
+
+    <main class="content">
+      <header class="topbar">
+        <h2>🛠️ Ferramentas de Administração</h2>
+      </header>
+
+      <!-- Card: Fechamento Mensal -->
+      <div class="ferramenta-card">
+        <h3>📅 Fechamento Mensal</h3>
+        <p style="color: var(--text-secondary);">
+          Ao fechar o mês, todas as movimentações (entradas, saídas, contas e devoluções) 
+          do mês atual serão arquivadas e removidas do caixa ativo. Os saldos das contas serão 
+          atualizados para o próximo mês.
+        </p>
+        <p style="color: var(--warning); font-size: 14px;">
+          ⚠️ Esta ação não pode ser desfeita. Recomendamos fazer um backup antes.
+        </p>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+          <button class="btn btn-danger" onclick="fecharMes()" id="btn-fechar-mes">
+            🔒 Fechar Mês Atual
+          </button>
+          <button class="btn btn-primary" onclick="verificarFechamento()" id="btn-verificar-fechamento">
+            🔍 Verificar Status
+          </button>
+        </div>
+        <div id="resultado-fechamento" class="resultado"></div>
+      </div>
+
+      <!-- Card: Limpar Dados -->
+      <div class="ferramenta-card">
+        <h3>🧹 Limpar Todos os Dados</h3>
+        <p style="color: var(--text-secondary);">
+          Esta ação <strong>remove permanentemente</strong> todos os dados cadastrados:
+          clientes, orçamentos, caixa, contas, agendamentos e demais registros do sistema.
+        </p>
+
+        <div class="aviso">
+          ⚠️ <strong>ATENÇÃO:</strong> Essa operação é <strong>IRREVERSÍVEL</strong>. 
+          Faça um backup antes de prosseguir.
+        </div>
+
+        <div class="checkbox-group">
+          <label>
+            <input type="checkbox" id="confirmar-limpeza">
+            Sim, eu entendi que isso vai apagar <strong>TODOS</strong> os dados.
+          </label>
+          <label>
+            <input type="checkbox" id="confirmar-backup">
+            Eu já fiz um backup dos meus dados (ou não me importo em perdê-los).
+          </label>
+        </div>
+
+        <button class="btn-danger" id="btn-limpar" disabled onclick="limparDados()">
+          🗑️ Limpar Todos os Dados
+        </button>
+
+        <div id="resultado-limpeza" class="resultado"></div>
+      </div>
+
+      <!-- Card: Backup Rápido -->
+      <div class="ferramenta-card">
+        <h3>💾 Fazer Backup Manual</h3>
+        <p style="color: var(--text-secondary);">
+          Faça um backup completo de todos os dados antes de qualquer limpeza.
+        </p>
+        <button class="btn-success" onclick="fazerBackupManual()">📦 Fazer Backup Agora</button>
+        <div id="resultado-backup" class="resultado"></div>
+      </div>
+
+      <!-- Card: Atualizações -->
+      <div class="ferramenta-card">
+        <h3>🔄 Atualização do Sistema</h3>
+        <p style="color:var(--text-secondary);">Verifique novas versões publicadas e atualize sem reinstalar manualmente.</p>
+        <div id="resultado-atualizacao" class="resultado" style="display:block;">Versão instalada: <strong id="versao-atual">1.0.1</strong></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
+          <button class="btn btn-primary" onclick="verificarAtualizacao()" id="btn-verificar-atualizacao">🔍 Verificar atualização</button>
+          <button class="btn btn-success" onclick="baixarAtualizacao()" id="btn-baixar-atualizacao" style="display:none;">⬇️ Baixar atualização</button>
+          <button class="btn btn-purple" onclick="instalarAtualizacao()" id="btn-instalar-atualizacao" style="display:none;">🔁 Reiniciar e instalar</button>
+        </div>
+      </div>
+      <!-- Card: Estatísticas -->
+      <div class="ferramenta-card">
+        <h3>📊 Estatísticas do Sistema</h3>
+        <div id="estatisticas" style="color: var(--text-secondary);">
+          <p>Carregando...</p>
+        </div>
+        <button class="btn btn-primary" onclick="atualizarEstatisticas()" style="margin-top:10px;">🔄 Atualizar</button>
+      </div>
+    </main>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="../js/api.js"></script>
+  <script src="../js/app.js"></script>
+  <script src="../js/utils.js"></script>
+  <script>
+    function mostrarAtualizacao(texto, tipo='') {
+      const el = document.getElementById('resultado-atualizacao');
+      el.className = 'resultado ' + tipo;
+      el.innerHTML = texto;
+      el.style.display = 'block';
+    }
+    async function verificarAtualizacao() {
+      const btn = document.getElementById('btn-verificar-atualizacao');
+      btn.disabled = true; mostrarAtualizacao('⏳ Consultando GitHub Releases...');
+      const r = await window.electron?.verificarAtualizacao?.();
+      btn.disabled = false;
+      if (!r?.sucesso) return mostrarAtualizacao('ℹ️ ' + (r?.mensagem || r?.erro || 'Atualização indisponível neste ambiente.'), 'aviso');
+      if (r.versaoNova) {
+        mostrarAtualizacao(`✅ Nova versão disponível: <strong>${r.versaoNova}</strong>`);
+        document.getElementById('btn-baixar-atualizacao').style.display = 'inline-block';
+      } else mostrarAtualizacao(`✅ Sistema atualizado. Versão <strong>${r.versaoAtual}</strong>.`);
+    }
+    async function baixarAtualizacao() {
+      document.getElementById('btn-baixar-atualizacao').disabled = true;
+      mostrarAtualizacao('⬇️ Baixando atualização...');
+      const r = await window.electron?.baixarAtualizacao?.();
+      if (!r?.sucesso) { document.getElementById('btn-baixar-atualizacao').disabled = false; return mostrarAtualizacao('❌ ' + (r?.erro || 'Falha no download.'), 'erro'); }
+    }
+    async function instalarAtualizacao() { await window.electron?.instalarAtualizacao?.(); }
+    window.electron?.onAtualizacao?.(dados => {
+      if (dados.status === 'verificando') mostrarAtualizacao('⏳ Verificando nova versão...');
+      if (dados.status === 'disponivel') { mostrarAtualizacao(`✅ Versão <strong>${dados.versao}</strong> disponível.`); document.getElementById('btn-baixar-atualizacao').style.display='inline-block'; }
+      if (dados.status === 'baixando') mostrarAtualizacao(`⬇️ Baixando... ${dados.percentual}%`);
+      if (dados.status === 'baixado') { mostrarAtualizacao(`✅ Versão ${dados.versao} pronta para instalar.`); document.getElementById('btn-instalar-atualizacao').style.display='inline-block'; }
+      if (dados.status === 'atualizado') mostrarAtualizacao(`✅ Sistema atualizado na versão ${dados.versao}.`);
+      if (dados.status === 'erro') mostrarAtualizacao('❌ ' + dados.mensagem, 'erro');
+    });
+    // ============================================
+    // ATUALIZAR ESTATÍSTICAS
+    // ============================================
+    async function atualizarEstatisticas() {
+      const container = document.getElementById('estatisticas');
+      const colecoes = [
+        'clientes', 'vendas', 'caixa_entrada', 'caixa_saida',
+        'contas_pagar', 'valores_receber',
+        'devolucoes', 'agendamentos', 'lixeira',
+        'financial_accounts', 'financial_categories', 'suppliers',
+        'audit_logs'
+      ];
+      let html = '';
+      let total = 0;
+      for (const col of colecoes) {
+        const result = await window.api.buscar(col);
+        const count = result.sucesso ? (result.dados || []).length : 0;
+        total += count;
+        html += `<p><strong>${col}:</strong> ${count} registros</p>`;
+      }
+      html = `<p style="font-weight:bold;color:var(--text);">Total de registros: ${total}</p>` + html;
+      container.innerHTML = html;
+    }
+
+    // ============================================
+    // FAZER BACKUP MANUAL
+    // ============================================
+    async function fazerBackupManual() {
+      const resultDiv = document.getElementById('resultado-backup');
+      resultDiv.className = 'resultado';
+      resultDiv.style.display = 'none';
+      
+      try {
+        const resultado = await window.api.backup();
+        if (resultado.sucesso) {
+          resultDiv.className = 'resultado sucesso';
+          resultDiv.innerHTML = `✅ ${resultado.mensagem}`;
+          resultDiv.style.display = 'block';
+          showToast('✅ Backup concluído!', 'success');
+        } else {
+          resultDiv.className = 'resultado erro';
+          resultDiv.innerHTML = `❌ Erro: ${resultado.erro}`;
+          resultDiv.style.display = 'block';
+          showToast('❌ Erro no backup', 'error');
+        }
+      } catch (e) {
+        resultDiv.className = 'resultado erro';
+        resultDiv.innerHTML = `❌ Erro: ${e.message}`;
+        resultDiv.style.display = 'block';
+        showToast('❌ Erro', 'error');
+      }
+    }
+
+    // ============================================
+    // FECHAMENTO MENSAL
+    // ============================================
+    async function fecharMes() {
+      const btn = document.getElementById('btn-fechar-mes');
+      const resultDiv = document.getElementById('resultado-fechamento');
+      
+      if (!confirm('⚠️ Tem certeza que deseja fechar o mês atual? Todas as movimentações serão arquivadas e removidas do caixa ativo.')) return;
+      if (!confirm('🔴 Última confirmação: Fechar o mês?')) return;
+
+      btn.disabled = true;
+      btn.textContent = '⏳ Fechando...';
+
+      try {
+        const resultado = await window.api.fecharMes();
+        if (resultado.sucesso) {
+          resultDiv.className = 'resultado sucesso';
+          resultDiv.innerHTML = `✅ ${resultado.mensagem}`;
+          resultDiv.style.display = 'block';
+          showToast('✅ Mês fechado com sucesso!', 'success');
+          setTimeout(() => window.location.reload(), 1500);
+        } else {
+          resultDiv.className = 'resultado erro';
+          resultDiv.innerHTML = `❌ ${resultado.erro}`;
+          resultDiv.style.display = 'block';
+          showToast('❌ ' + resultado.erro, 'error');
+        }
+      } catch (erro) {
+        resultDiv.className = 'resultado erro';
+        resultDiv.innerHTML = `❌ Erro: ${erro.message}`;
+        resultDiv.style.display = 'block';
+        showToast('❌ Erro: ' + erro.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '🔒 Fechar Mês Atual';
+      }
+    }
+
+    async function verificarFechamento() {
+      const resultDiv = document.getElementById('resultado-fechamento');
+      const pendente = window.api.verificarFechamentoPendente();
+      const ultimo = localStorage.getItem('ultimo_fechamento_mes') || 'Nunca';
+      const dataUltimo = localStorage.getItem('data_ultimo_fechamento') || 'Nunca';
+      const hoje = new Date();
+      const mesAno = `${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,'0')}`;
+      resultDiv.className = 'resultado ' + (pendente ? 'erro' : 'sucesso');
+      resultDiv.innerHTML = `
+        <strong>Status do fechamento:</strong><br>
+        Mês atual: ${mesAno}<br>
+        Último fechamento: ${ultimo} (${dataUltimo})<br>
+        ${pendente ? '⚠️ O mês atual ainda NÃO foi fechado. Execute o fechamento.' : '✅ Mês atual já está fechado.'}
+      `;
+      resultDiv.style.display = 'block';
+    }
+
+    // ============================================
+    // HABILITAR/DESABILITAR BOTÃO DE LIMPEZA
+    // ============================================
+    document.addEventListener('DOMContentLoaded', function() {
+      const c1 = document.getElementById('confirmar-limpeza');
+      const c2 = document.getElementById('confirmar-backup');
+      const btn = document.getElementById('btn-limpar');
+
+      function verificarCheckboxes() {
+        btn.disabled = !(c1.checked && c2.checked);
+      }
+
+      c1.addEventListener('change', verificarCheckboxes);
+      c2.addEventListener('change', verificarCheckboxes);
+
+      // Carregar estatísticas
+      atualizarEstatisticas();
+    });
+
+    // ============================================
+    // LIMPAR DADOS
+    // ============================================
+    async function limparDados() {
+      const btn = document.getElementById('btn-limpar');
+      const resultDiv = document.getElementById('resultado-limpeza');
+      resultDiv.className = 'resultado';
+      resultDiv.style.display = 'none';
+
+      if (!confirm('🔴 ÚLTIMA CONFIRMAÇÃO: Tem certeza que deseja APAGAR TODOS OS DADOS permanentemente?\n\nEsta ação NÃO pode ser desfeita!')) {
+        return;
+      }
+      if (!confirm('⚠️ Confirmar novamente: APAGAR TUDO?')) {
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = '⏳ Limpando...';
+
+      try {
+        const colecoes = [
+          'clientes', 'vendas', 'caixa_entrada', 'caixa_saida',
+          'contas_pagar', 'valores_receber',
+          'devolucoes', 'agendamentos', 'lixeira',
+          'financial_accounts', 'financial_categories', 'suppliers',
+          'audit_logs'
+        ];
+
+        let removidos = 0;
+        for (const col of colecoes) {
+          localStorage.removeItem(`db_${col}`);
+          removidos++;
+          await new Promise(r => setTimeout(r, 10));
+        }
+
+        localStorage.removeItem('backup_completo');
+        localStorage.removeItem('backup_historico');
+        localStorage.removeItem('backup_config');
+        localStorage.removeItem('ultimo_backup_realizado');
+        localStorage.removeItem('migracao_financeira_realizada');
+
+        const keys = Object.keys(localStorage);
+        keys.forEach(key => {
+          if (key.startsWith('fotos_')) {
+            localStorage.removeItem(key);
+          }
+        });
+
+        resultDiv.className = 'resultado sucesso';
+        resultDiv.innerHTML = `
+          ✅ <strong>Limpeza concluída!</strong><br>
+          <span class="detalhes">${removidos} coleções foram removidas. O sistema está limpo.</span>
+          <br><br>
+          <button class="btn btn-primary" onclick="window.location.href='index.html'">📊 Ir para o Dashboard</button>
+        `;
+        resultDiv.style.display = 'block';
+
+        showToast('🧹 Todos os dados foram removidos!', 'warning');
+        await atualizarEstatisticas();
+
+      } catch (erro) {
+        console.error('Erro ao limpar dados:', erro);
+        resultDiv.className = 'resultado erro';
+        resultDiv.innerHTML = `❌ Erro: ${erro.message}`;
+        resultDiv.style.display = 'block';
+        showToast('❌ Erro na limpeza', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '🗑️ Limpar Todos os Dados';
+        document.getElementById('confirmar-limpeza').checked = false;
+        document.getElementById('confirmar-backup').checked = false;
+        document.getElementById('btn-limpar').disabled = true;
+      }
+    }
+
+    // ============================================
+    // EXPOSIÇÃO GLOBAL
+    // ============================================
+    window.limparDados = limparDados;
+    window.fazerBackupManual = fazerBackupManual;
+    window.atualizarEstatisticas = atualizarEstatisticas;
+    window.verificarAtualizacao = verificarAtualizacao;
+    window.baixarAtualizacao = baixarAtualizacao;
+    window.instalarAtualizacao = instalarAtualizacao;
+    window.fecharMes = fecharMes;
+    window.verificarFechamento = verificarFechamento;
+    window.showToast = showToast;
+    window.fazerLogout = fazerLogout;
+  </script>
+
+  <script src="../js/carregarMenu.js"></script>
+
+  <script src="../js/glitter.js"></script>
+</body>
+</html>

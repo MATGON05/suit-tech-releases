@@ -1,0 +1,236 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Contas - SUIT-TECH</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <script>
+    (function() {
+      const sessao = localStorage.getItem('sessao_suittech');
+      if (!sessao) { window.location.href = 'login.html'; return; }
+      try {
+        const dados = JSON.parse(sessao);
+        if (!dados.logado) { window.location.href = 'login.html'; return; }
+      } catch (e) { window.location.href = 'login.html'; }
+    })();
+  </script>
+  <link rel="stylesheet" href="../css/tema-novo-overrides.css">
+  <link rel="stylesheet" href="../css/theme.css">
+  <script src="../js/theme.js"></script>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <span class="logo"><img src="../assets/logo.png" alt="SUIT-TECH"></span>
+        <div><h1>SUIT-TECH</h1><small>Assistência Técnica</small></div>
+      </div>
+      <div id="menu-container"></div>
+      <footer class="sidebar-footer">
+        <span>Rodando local</span><br>
+        <button onclick="fazerLogout()" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:12px;margin-top:8px;">🚪 Sair</button>
+      </footer>
+    </aside>
+
+    <main class="content">
+      <header class="topbar">
+        <h2>🏦 Gerenciar Contas / Caixas</h2>
+        <button class="btn btn-primary" onclick="openContaModal()">+ Nova Conta</button>
+      </header>
+
+      <section class="panel">
+        <div class="toolbar">
+          <input type="text" id="search-conta" placeholder="🔍 Buscar conta..." oninput="renderContas()">
+          <span style="color:var(--text-muted);font-size:13px;" id="conta-count">0 contas</span>
+        </div>
+        <div class="table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr><th>Nome</th><th>Tipo</th><th>Saldo Atual</th><th>Status</th><th class="actions">Ações</th></tr>
+            </thead>
+            <tbody id="contas-table">
+              <tr><td colspan="5" class="empty">Carregando...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Modal -->
+  <div id="conta-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="conta-modal-title">Nova Conta</h3>
+        <button class="close" onclick="closeContaModal()">&times;</button>
+      </div>
+      <form id="conta-form" onsubmit="saveConta(event)">
+        <input type="hidden" id="conta-id">
+        <div class="form-grid">
+          <div class="form-group span-2">
+            <label>Nome da Conta *</label>
+            <input type="text" id="conta-nome" required placeholder="Ex: Caixa Físico, Banco Itaú, PIX">
+          </div>
+          <div class="form-group">
+            <label>Tipo</label>
+            <select id="conta-tipo">
+              <option value="caixa">Caixa Físico</option>
+              <option value="banco">Banco</option>
+              <option value="pix">PIX</option>
+              <option value="pessoal">Conta Pessoal</option>
+              <option value="outro">Outro</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Saldo Inicial (R$)</label>
+            <input type="number" step="0.01" id="conta-saldo-inicial" value="0">
+          </div>
+          <div class="form-group span-2">
+            <label>Observação</label>
+            <textarea id="conta-obs" rows="2"></textarea>
+          </div>
+          <div class="form-group span-2">
+            <label><input type="checkbox" id="conta-ativo" checked> Conta ativa</label>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn" onclick="closeContaModal()">Cancelar</button>
+          <button type="submit" class="btn btn-primary">💾 Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="../js/api.js"></script>
+  <script src="../js/app.js"></script>
+  <script src="../js/utils.js"></script>
+  <script>
+    let contasCache = [];
+
+    async function loadContas() {
+      try {
+        const result = await window.api.contasBuscar();
+        contasCache = result.sucesso ? result.dados : [];
+        renderContas();
+      } catch (e) {
+        console.error('Erro:', e);
+        contasCache = [];
+        renderContas();
+      }
+    }
+
+    function renderContas() {
+      const q = document.getElementById('search-conta')?.value.toLowerCase() || '';
+      const tbody = document.getElementById('contas-table');
+      const countEl = document.getElementById('conta-count');
+      if (!tbody) return;
+
+      const filtered = contasCache.filter(c => (c.nome || '').toLowerCase().includes(q));
+      if (countEl) countEl.textContent = `${filtered.length} contas`;
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="empty">Nenhuma conta cadastrada</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = filtered.map(c => `
+        <tr>
+          <td><strong>${c.nome || '-'}</strong></td>
+          <td>${c.tipo || '-'}</td>
+          <td style="color:var(--gold);font-weight:bold;">R$ ${(c.saldo_atual || 0).toFixed(2).replace('.', ',')}</td>
+          <td><span class="status-badge ${c.ativo ? 'status-concluido' : 'status-cancelado'}">${c.ativo ? '✅ Ativo' : '❌ Inativo'}</span></td>
+          <td class="actions">
+            <button class="btn btn-primary" onclick="editConta('${c._id}')" style="padding:4px 12px;font-size:12px;">✏️</button>
+            <button class="btn btn-danger" onclick="deleteConta('${c._id}')" style="padding:4px 12px;font-size:12px;">🗑️</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function openContaModal(conta = null) {
+      document.getElementById('conta-modal-title').textContent = conta ? '✏️ Editar Conta' : '➕ Nova Conta';
+      document.getElementById('conta-id').value = conta ? conta._id : '';
+      document.getElementById('conta-nome').value = conta ? conta.nome : '';
+      document.getElementById('conta-tipo').value = conta ? conta.tipo || 'caixa' : 'caixa';
+      document.getElementById('conta-saldo-inicial').value = conta ? conta.saldo_inicial || 0 : 0;
+      document.getElementById('conta-obs').value = conta ? conta.observacao || '' : '';
+      document.getElementById('conta-ativo').checked = conta ? conta.ativo !== false : true;
+      document.getElementById('conta-modal').classList.add('open');
+    }
+
+    function closeContaModal() {
+      document.getElementById('conta-modal').classList.remove('open');
+    }
+
+    async function saveConta(e) {
+      e.preventDefault();
+      const id = document.getElementById('conta-id').value;
+      const body = {
+        nome: document.getElementById('conta-nome').value.trim(),
+        tipo: document.getElementById('conta-tipo').value,
+        saldo_inicial: parseFloat(document.getElementById('conta-saldo-inicial').value) || 0,
+        observacao: document.getElementById('conta-obs').value.trim(),
+        ativo: document.getElementById('conta-ativo').checked
+      };
+      if (!body.nome) { showToast('❌ Nome é obrigatório!', 'error'); return; }
+
+      try {
+        let result;
+        if (id) {
+          result = await window.api.contasAtualizar(id, body);
+        } else {
+          result = await window.api.contasSalvar(body);
+        }
+        if (result.sucesso) {
+          closeContaModal();
+          showToast('✅ Conta salva!', 'success');
+          await loadContas();
+        } else {
+          showToast('❌ Erro: ' + result.erro, 'error');
+        }
+      } catch (e) {
+        console.error(e);
+        showToast('❌ Erro: ' + e.message, 'error');
+      }
+    }
+
+    async function editConta(id) {
+      const conta = contasCache.find(c => c._id === id);
+      if (conta) openContaModal(conta);
+      else showToast('❌ Conta não encontrada', 'error');
+    }
+
+    async function deleteConta(id) {
+      if (!confirm('Excluir esta conta?')) return;
+      const result = await window.api.contasDeletar(id);
+      if (result.sucesso) {
+        showToast('✅ Conta excluída!', 'success');
+        await loadContas();
+      } else {
+        showToast('❌ Erro: ' + result.erro, 'error');
+      }
+    }
+
+    document.addEventListener('click', function(e) {
+      if (e.target.classList.contains('modal')) e.target.classList.remove('open');
+    });
+
+    document.addEventListener('DOMContentLoaded', loadContas);
+
+    window.loadContas = loadContas;
+    window.renderContas = renderContas;
+    window.openContaModal = openContaModal;
+    window.closeContaModal = closeContaModal;
+    window.saveConta = saveConta;
+    window.editConta = editConta;
+    window.deleteConta = deleteConta;
+  </script>
+
+  <script src="../js/carregarMenu.js"></script>
+
+  <script src="../js/glitter.js"></script>
+</body>
+</html>

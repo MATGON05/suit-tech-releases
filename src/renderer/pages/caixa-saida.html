@@ -1,0 +1,286 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Caixa Saída - SUIT-TECH</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    (function() {
+      const sessao = localStorage.getItem('sessao_suittech');
+      if (!sessao) { window.location.href = 'login.html'; return; }
+      try {
+        const dados = JSON.parse(sessao);
+        if (!dados.logado) { window.location.href = 'login.html'; return; }
+      } catch (e) { window.location.href = 'login.html'; }
+    })();
+  </script>
+  <link rel="stylesheet" href="../css/tema-novo-overrides.css">
+  <link rel="stylesheet" href="../css/theme.css">
+  <script src="../js/theme.js"></script>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand"><span class="logo"><img src="../assets/logo.png" alt="SUIT-TECH"></span><div><h1>SUIT-TECH</h1><small>Assistência Técnica</small></div></div>
+      <div id="menu-container"></div>
+      <footer class="sidebar-footer"><span>Rodando local</span><br><button onclick="fazerLogout()" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:12px;margin-top:8px;">🚪 Sair</button></footer>
+    </aside>
+
+    <main class="content">
+      <header class="topbar"><h2>💸 Caixa Saída</h2><button class="btn btn-primary" onclick="openCashOutModal()">+ Nova Saída</button></header>
+      <section class="panel">
+        <div class="toolbar">
+          <select id="filter-out-month" onchange="loadCashOut()"><option value="1">Janeiro</option><option value="2">Fevereiro</option><option value="3">Março</option><option value="4">Abril</option><option value="5">Maio</option><option value="6">Junho</option><option value="7">Julho</option><option value="8">Agosto</option><option value="9">Setembro</option><option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option></select>
+          <input type="number" id="filter-out-year" value="2026" onchange="loadCashOut()" style="width:100px;">
+          <span style="color: var(--text-muted); font-size: 13px;" id="cashout-count">0 saídas</span>
+        </div>
+        <div class="stats-grid">
+          <div class="stat-card accent-red"><span class="stat-label">Total Saídas</span><strong class="stat-value" id="out-total">R$ 0,00</strong></div>
+          <div class="stat-card accent-green"><span class="stat-label">Pago</span><strong class="stat-value" id="out-paid">R$ 0,00</strong></div>
+          <div class="stat-card accent-orange"><span class="stat-label">Não Pago</span><strong class="stat-value" id="out-unpaid">R$ 0,00</strong></div>
+        </div>
+        <div class="chart-wrapper" style="margin:20px 0; max-height:300px"><canvas id="cashOutChart"></canvas></div>
+        <div class="table-wrapper">
+          <table class="data-table">
+            <thead><tr><th>Data</th><th>Descrição</th><th>Valor</th><th>Status</th><th>Conta</th><th>Categoria</th><th>Tipo</th><th>Rateio</th><th class="actions">Ações</th></tr></thead>
+            <tbody id="cash-out-table"><tr><td colspan="9" class="empty">Carregando...</td></tr></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- MODAL -->
+  <div id="cash-out-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header"><h3 id="cash-out-modal-title">Nova Saída</h3><button class="close" onclick="closeCashOutModal()">&times;</button></div>
+      <form id="cash-out-form" onsubmit="saveCashOut(event)">
+        <input type="hidden" id="cash-out-id">
+        <div class="form-grid">
+          <div class="form-group"><label>Data *</label><input type="date" id="cash-out-date" required></div>
+          <div class="form-group"><label>Valor (R$) *</label><input type="number" step="0.01" id="cash-out-amount" required></div>
+          <div class="form-group span-2"><label>Descrição *</label><input type="text" id="cash-out-description" required></div>
+          <div class="form-group span-2"><label><input type="checkbox" id="cash-out-paid" checked> Pago</label></div>
+          <div class="form-group"><label>Tipo Saída</label><select id="cash-out-tipo"><option value="empresarial">🏢 Empresarial</option><option value="pessoal">👤 Pessoal</option></select></div>
+          <div class="form-group"><label>Conta Origem</label><select id="cash-out-conta"></select></div>
+          <div class="form-group span-2"><label>Categoria</label><select id="cash-out-categoria"></select></div>
+          <div class="form-group"><label>Forma Pag.</label><select id="cash-out-forma"><option value="dinheiro">Dinheiro</option><option value="pix">PIX</option><option value="debito">Débito</option><option value="credito">Crédito</option><option value="transferencia">Transferência</option></select></div>
+          <div class="form-group"><label>Fornecedor</label><select id="cash-out-fornecedor"></select></div>
+          <div class="form-group span-2"><label>Observação</label><textarea id="cash-out-obs" rows="2"></textarea></div>
+          <!-- RATEIO -->
+          <div class="form-group span-2">
+            <label>🎯 Rateio (opcional)</label>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+              <input type="number" step="0.01" id="rateio-empresa" placeholder="% Empresa" style="width:100px;">
+              <input type="number" step="0.01" id="rateio-pessoal" placeholder="% Pessoal" style="width:100px;">
+              <span style="color:var(--text-muted);font-size:12px;">A soma deve ser 100%</span>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn" onclick="closeCashOutModal()">Cancelar</button>
+          <button type="submit" class="btn btn-primary">💾 Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="../js/api.js"></script>
+  <script src="../js/app.js"></script>
+  <script src="../js/utils.js"></script>
+  <script>
+    let cashOutCache = [], cashOutChart = null;
+
+    async function loadCashOut() {
+      try {
+        const result = await window.api.buscar('caixa_saida');
+        cashOutCache = result.sucesso ? result.dados : [];
+        renderCashOut();
+        atualizarResumoSaidas();
+      } catch(e) { cashOutCache = []; renderCashOut(); }
+    }
+
+    function renderCashOut() {
+      const month = document.getElementById('filter-out-month').value;
+      const year = document.getElementById('filter-out-year').value;
+      const tbody = document.getElementById('cash-out-table');
+      const countEl = document.getElementById('cashout-count');
+      let filtered = cashOutCache;
+      if (month && year) {
+        filtered = cashOutCache.filter(item => {
+          if (!item.data) return false;
+          const d = new Date(item.data);
+          return d.getFullYear() == year && (d.getMonth() + 1) == month;
+        });
+      }
+      countEl.textContent = `${filtered.length} saídas`;
+      if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="9" class="empty">Nenhuma saída</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = filtered.map(item => `
+        <tr>
+          <td>${item.data || '-'}</td>
+          <td>${item.descricao || '-'}</td>
+          <td>R$ ${(item.valor || 0).toFixed(2).replace('.', ',')}</td>
+          <td><span class="badge ${item.pago ? 'badge-concluido' : 'badge-pendente'}">${item.pago ? '✅ Pago' : '⏳ Não Pago'}</span></td>
+          <td>${item.conta_nome || '-'}</td>
+          <td>${item.categoria || '-'}</td>
+          <td>${item.tipo_saida === 'pessoal' ? '👤 Pessoal' : '🏢 Empresarial'}</td>
+          <td>${item.rateio ? item.rateio : '-'}</td>
+          <td class="actions">
+            <button class="btn btn-primary" onclick="editCashOut('${item._id}')">✏️</button>
+            <button class="btn btn-warning" onclick="repetirSaida('${item._id}')">🔄</button>
+            <button class="btn btn-danger" onclick="deleteCashOut('${item._id}')">🗑️</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function atualizarResumoSaidas() {
+      const month = document.getElementById('filter-out-month').value;
+      const year = document.getElementById('filter-out-year').value;
+      let filtered = cashOutCache;
+      if (month && year) {
+        filtered = cashOutCache.filter(item => {
+          if (!item.data) return false;
+          const d = new Date(item.data);
+          return d.getFullYear() == year && (d.getMonth() + 1) == month;
+        });
+      }
+      let total = 0, pago = 0, naoPago = 0;
+      filtered.forEach(item => {
+        total += item.valor || 0;
+        if (item.pago) pago += item.valor || 0;
+        else naoPago += item.valor || 0;
+      });
+      document.getElementById('out-total').textContent = `R$ ${total.toFixed(2).replace('.', ',')}`;
+      document.getElementById('out-paid').textContent = `R$ ${pago.toFixed(2).replace('.', ',')}`;
+      document.getElementById('out-unpaid').textContent = `R$ ${naoPago.toFixed(2).replace('.', ',')}`;
+      const ctx = document.getElementById('cashOutChart')?.getContext('2d');
+      if (ctx) {
+        if (cashOutChart) cashOutChart.destroy();
+        const dias = filtered.map(i => i.data).sort();
+        const valores = dias.map(d => filtered.find(i => i.data === d)?.valor || 0);
+        if (dias.length > 0) {
+          cashOutChart = new Chart(ctx, {
+            type: 'bar',
+            data: { labels: dias.map(d => d.slice(5)), datasets: [{ label: 'Saídas', data: valores, backgroundColor: '#ef4444', borderRadius: 6 }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+          });
+        }
+      }
+    }
+
+    function openCashOutModal(item = null) {
+      document.getElementById('cash-out-modal-title').textContent = item ? '✏️ Editar Saída' : '➕ Nova Saída';
+      document.getElementById('cash-out-id').value = item ? item._id : '';
+      document.getElementById('cash-out-date').value = item ? item.data : dataLocalHojeISO();
+      document.getElementById('cash-out-description').value = item ? item.descricao : '';
+      document.getElementById('cash-out-amount').value = item ? item.valor || '' : '';
+      document.getElementById('cash-out-paid').checked = item ? item.pago : true;
+      document.getElementById('cash-out-tipo').value = item ? item.tipo_saida || 'empresarial' : 'empresarial';
+      document.getElementById('cash-out-obs').value = item ? item.observacao || '' : '';
+      document.getElementById('rateio-empresa').value = item && item.rateio ? item.rateio.split('/')[0] || '' : '';
+      document.getElementById('rateio-pessoal').value = item && item.rateio ? item.rateio.split('/')[1] || '' : '';
+      window.carregarContasSelect('cash-out-conta', item ? item.conta_id : '');
+      window.carregarCategoriasSelect('cash-out-categoria', item ? item.categoria : '');
+      window.carregarFornecedoresSelect('cash-out-fornecedor', item ? item.fornecedor : '');
+      document.getElementById('cash-out-forma').value = item ? item.forma_pagamento || 'dinheiro' : 'dinheiro';
+      document.getElementById('cash-out-modal').classList.add('open');
+    }
+
+    function closeCashOutModal() {
+      document.getElementById('cash-out-modal').classList.remove('open');
+    }
+
+    async function saveCashOut(e) {
+      e.preventDefault();
+      const id = document.getElementById('cash-out-id').value;
+      const valor = parseFloat(document.getElementById('cash-out-amount').value) || 0;
+      const rateioEmpresa = parseFloat(document.getElementById('rateio-empresa').value) || 0;
+      const rateioPessoal = parseFloat(document.getElementById('rateio-pessoal').value) || 0;
+      let rateioStr = '';
+      if (rateioEmpresa + rateioPessoal === 100) rateioStr = `${rateioEmpresa}% Empresa / ${rateioPessoal}% Pessoal`;
+      const body = {
+        data: document.getElementById('cash-out-date').value,
+        descricao: document.getElementById('cash-out-description').value.trim(),
+        valor: valor,
+        pago: document.getElementById('cash-out-paid').checked,
+        tipo_saida: document.getElementById('cash-out-tipo').value,
+        conta_id: document.getElementById('cash-out-conta').value,
+        categoria: document.getElementById('cash-out-categoria').value,
+        forma_pagamento: document.getElementById('cash-out-forma').value,
+        fornecedor: document.getElementById('cash-out-fornecedor').value,
+        observacao: document.getElementById('cash-out-obs').value.trim(),
+        rateio: rateioStr,
+        conta_nome: '',
+        status: document.getElementById('cash-out-paid').checked ? 'pago' : 'pendente'
+      };
+      if (body.conta_id) {
+        const contas = await window.api.contasBuscar();
+        const conta = contas.dados.find(c => c._id === body.conta_id);
+        if (conta) body.conta_nome = conta.nome;
+      }
+      if (!body.descricao || !body.data || body.valor <= 0) {
+        showToast('❌ Preencha todos os campos!', 'error'); return;
+      }
+      try {
+        let resultado;
+        if (id) resultado = await window.api.atualizar('caixa_saida', id, body);
+        else resultado = await window.api.salvar('caixa_saida', body);
+        if (resultado.sucesso) {
+          closeCashOutModal();
+          showToast('✅ Saída salva!', 'success');
+          await loadCashOut();
+        } else showToast('❌ Erro: ' + resultado.erro, 'error');
+      } catch(e) { showToast('❌ Erro: ' + e.message, 'error'); }
+    }
+
+    async function editCashOut(id) {
+      const item = cashOutCache.find(x => x._id === id);
+      if (item) openCashOutModal(item);
+      else showToast('❌ Saída não encontrada', 'error');
+    }
+
+    async function repetirSaida(id) {
+      const item = cashOutCache.find(x => x._id === id);
+      if (!item) return;
+      const novaSaida = { ...item, _id: undefined, data: dataLocalHojeISO(), descricao: `🔁 REPETIÇÃO: ${item.descricao}` };
+      const resultado = await window.api.salvar('caixa_saida', novaSaida);
+      if (resultado.sucesso) { showToast('✅ Repetida!', 'success'); await loadCashOut(); }
+      else showToast('❌ Erro: ' + resultado.erro, 'error');
+    }
+
+    async function deleteCashOut(id) {
+      if (!confirm('Excluir?')) return;
+      const resultado = await window.api.deletar('caixa_saida', id);
+      if (resultado.sucesso) { showToast('✅ Excluída!', 'success'); await loadCashOut(); }
+      else showToast('❌ Erro: ' + resultado.erro, 'error');
+    }
+
+    document.addEventListener('click', function(e) {
+      if (e.target.classList.contains('modal')) e.target.classList.remove('open');
+    });
+    document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('filter-out-month').value = String(new Date().getMonth() + 1);
+      document.getElementById('filter-out-year').value = new Date().getFullYear();
+      loadCashOut();
+    });
+
+    window.loadCashOut = loadCashOut; window.renderCashOut = renderCashOut;
+    window.openCashOutModal = openCashOutModal; window.closeCashOutModal = closeCashOutModal;
+    window.saveCashOut = saveCashOut; window.editCashOut = editCashOut;
+    window.repetirSaida = repetirSaida; window.deleteCashOut = deleteCashOut;
+    window.showToast = showToast; window.fazerLogout = fazerLogout;
+  </script>
+
+  <script src="../js/carregarMenu.js"></script>
+
+  <script src="../js/glitter.js"></script>
+</body>
+</html>

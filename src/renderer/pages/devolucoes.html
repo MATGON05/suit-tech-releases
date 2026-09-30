@@ -1,0 +1,248 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Devoluções - SUIT-TECH</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <script>
+    (function() {
+      const sessao = localStorage.getItem('sessao_suittech');
+      if (!sessao) { window.location.href = 'login.html'; return; }
+      try {
+        const dados = JSON.parse(sessao);
+        if (!dados.logado) { window.location.href = 'login.html'; return; }
+      } catch (e) { window.location.href = 'login.html'; }
+    })();
+  </script>
+  <link rel="stylesheet" href="../css/tema-novo-overrides.css">
+  <link rel="stylesheet" href="../css/theme.css">
+  <script src="../js/theme.js"></script>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <span class="logo"><img src="../assets/logo.png" alt="SUIT-TECH"></span>
+        <div><h1>SUIT-TECH</h1><small>Assistência Técnica</small></div>
+      </div>
+      <div id="menu-container"></div>
+      <footer class="sidebar-footer"><span>Rodando local</span><br><button onclick="fazerLogout()" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:12px;margin-top:8px;">🚪 Sair</button></footer>
+    </aside>
+
+    <main class="content">
+      <header class="topbar">
+        <h2>🔄 Devoluções</h2>
+        <button class="btn btn-danger" onclick="openDevolucaoModal()">+ Nova Devolução</button>
+      </header>
+      <section class="panel">
+        <div class="toolbar">
+          <input type="text" id="search-devolucao" placeholder="🔍 Buscar..." oninput="renderDevolucoes()">
+          <select id="filter-devolucao-month" onchange="loadDevolucoes()">
+            <option value="1">Janeiro</option><option value="2">Fevereiro</option>
+            <option value="3">Março</option><option value="4">Abril</option>
+            <option value="5">Maio</option><option value="6">Junho</option>
+            <option value="7">Julho</option><option value="8">Agosto</option>
+            <option value="9">Setembro</option><option value="10">Outubro</option>
+            <option value="11">Novembro</option><option value="12">Dezembro</option>
+          </select>
+          <input type="number" id="filter-devolucao-year" value="2026" onchange="loadDevolucoes()" style="width:100px;">
+          <span style="color: var(--text-muted); font-size: 13px;" id="devolucao-count">0 devoluções</span>
+        </div>
+        <div class="stats-grid">
+          <div class="stat-card accent-red"><span class="stat-label">Total Devolvido</span><strong class="stat-value" id="devolucao-total">R$ 0,00</strong></div>
+        </div>
+        <div class="table-wrapper">
+          <table class="data-table">
+            <thead><tr><th>Data</th><th>Descrição</th><th>Valor</th><th>Origem</th><th class="actions">Ações</th></tr></thead>
+            <tbody id="devolucoes-table"><tr><td colspan="5" class="empty">Carregando...</td></tr></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="devolucao-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header"><h3>Nova Devolução</h3><button class="close" onclick="closeDevolucaoModal()">&times;</button></div>
+      <form id="devolucao-form" onsubmit="saveDevolucao(event)">
+        <div class="form-grid">
+          <div class="form-group"><label>Data *</label><input type="date" id="devolucao-date" required></div>
+          <div class="form-group"><label>Valor (R$) *</label><input type="number" step="0.01" id="devolucao-value" required></div>
+          <div class="form-group span-2"><label>Descrição *</label><input type="text" id="devolucao-descricao" required></div>
+          <div class="form-group span-2"><label>Venda Original (opcional)</label><select id="devolucao-venda-original"><option value="">Selecione uma venda...</option></select></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn" onclick="closeDevolucaoModal()">Cancelar</button>
+          <button type="submit" class="btn btn-danger">💸 Registrar Devolução</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="../js/api.js"></script>
+  <script src="../js/app.js"></script>
+  <script src="../js/utils.js"></script>
+  <script>
+    let devolucoesCache = [], vendasCache = [];
+
+    async function loadDevolucoes() {
+      try {
+        const result = await window.api.buscar('devolucoes');
+        devolucoesCache = result.sucesso ? result.dados : [];
+        renderDevolucoes();
+        atualizarResumoDevolucoes();
+        const resultVendas = await window.api.buscar('vendas');
+        vendasCache = resultVendas.sucesso ? resultVendas.dados : [];
+        popularSelectVendas();
+      } catch(e) { devolucoesCache = []; renderDevolucoes(); }
+    }
+
+    function popularSelectVendas() {
+      const select = document.getElementById('devolucao-venda-original');
+      if (!select) return;
+      select.innerHTML = '<option value="">Selecione uma venda...</option>';
+      vendasCache.forEach(v => {
+        const opt = document.createElement('option');
+        opt.value = v._id;
+        opt.textContent = `${v.cliente || 'Sem cliente'} - R$ ${(parseFloat(v.valor)||0).toFixed(2)}`;
+        select.appendChild(opt);
+      });
+    }
+
+    function renderDevolucoes() {
+      const q = document.getElementById('search-devolucao')?.value.toLowerCase() || '';
+      const month = document.getElementById('filter-devolucao-month')?.value;
+      const year = document.getElementById('filter-devolucao-year')?.value;
+      const tbody = document.getElementById('devolucoes-table');
+      const countEl = document.getElementById('devolucao-count');
+      let filtered = devolucoesCache;
+      if (q) filtered = filtered.filter(d => (d.descricao || '').toLowerCase().includes(q));
+      if (month && year) {
+        filtered = filtered.filter(d => {
+          if (!d.data) return false;
+          const dt = new Date(d.data);
+          return dt.getFullYear() == year && (dt.getMonth() + 1) == month;
+        });
+      }
+      countEl.textContent = `${filtered.length} devoluções`;
+      if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="empty">Nenhuma devolução</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = filtered.map(d => `
+        <tr>
+          <td>${d.data || '-'}</td>
+          <td>${d.descricao || '-'}</td>
+          <td style="color:#ef4444;">- R$ ${(d.valor||0).toFixed(2).replace('.', ',')}</td>
+          <td>${d.origem || 'Manual'}</td>
+          <td class="actions">
+            <button class="btn btn-warning" onclick="cancelarDevolucao('${d._id}')" title="Cancelar">↩️</button>
+            <button class="btn btn-danger" onclick="deleteDevolucao('${d._id}')">🗑️</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function atualizarResumoDevolucoes() {
+      const month = document.getElementById('filter-devolucao-month')?.value;
+      const year = document.getElementById('filter-devolucao-year')?.value;
+      let filtered = devolucoesCache;
+      if (month && year) {
+        filtered = devolucoesCache.filter(d => {
+          if (!d.data) return false;
+          const dt = new Date(d.data);
+          return dt.getFullYear() == year && (dt.getMonth() + 1) == month;
+        });
+      }
+      let total = 0;
+      filtered.forEach(d => total += d.valor || 0);
+      document.getElementById('devolucao-total').textContent = `R$ ${total.toFixed(2).replace('.', ',')}`;
+    }
+
+    function openDevolucaoModal() {
+      document.getElementById('devolucao-date').value = new Date().toISOString().split('T')[0];
+      document.getElementById('devolucao-value').value = '';
+      document.getElementById('devolucao-descricao').value = '';
+      document.getElementById('devolucao-venda-original').value = '';
+      document.getElementById('devolucao-modal').classList.add('open');
+    }
+
+    function closeDevolucaoModal() {
+      document.getElementById('devolucao-modal').classList.remove('open');
+    }
+
+    async function saveDevolucao(e) {
+      e.preventDefault();
+      const body = {
+        data: document.getElementById('devolucao-date').value,
+        valor: parseFloat(document.getElementById('devolucao-value').value) || 0,
+        descricao: document.getElementById('devolucao-descricao').value.trim(),
+        origem: 'Manual',
+        vendaId: document.getElementById('devolucao-venda-original').value || null
+      };
+      if (!body.descricao || !body.data || body.valor <= 0) {
+        showToast('❌ Preencha todos os campos!', 'error'); return;
+      }
+      try {
+        const resultado = await window.api.salvar('devolucoes', body);
+        if (!resultado.sucesso) { showToast('❌ Erro: ' + resultado.erro, 'error'); return; }
+        const entradaDevolucao = {
+          data: body.data, tipo: 'devolucao',
+          descricao: `🔴 DEVOLUÇÃO: ${body.descricao}`,
+          venda: -body.valor, custo: 0, lucro: -body.valor
+        };
+        await window.api.salvar('caixa_entrada', entradaDevolucao);
+        closeDevolucaoModal();
+        showToast('✅ Devolução registrada!', 'success');
+        await loadDevolucoes();
+      } catch(e) { showToast('❌ Erro: ' + e.message, 'error'); }
+    }
+
+    async function cancelarDevolucao(id) {
+      if (!confirm('Cancelar esta devolução? Isso restaurará o valor no caixa.')) return;
+      try {
+        const devolucao = devolucoesCache.find(d => d._id === id);
+        if (!devolucao) return;
+        await window.api.deletar('devolucoes', id);
+        const entradaRestaurada = {
+          data: new Date().toISOString().split('T')[0],
+          tipo: 'restauracao',
+          descricao: `🔄 RESTAURAÇÃO: ${devolucao.descricao}`,
+          venda: devolucao.valor, custo: 0, lucro: devolucao.valor
+        };
+        await window.api.salvar('caixa_entrada', entradaRestaurada);
+        showToast('✅ Devolução cancelada!', 'success');
+        await loadDevolucoes();
+      } catch(e) { showToast('❌ Erro: ' + e.message, 'error'); }
+    }
+
+    async function deleteDevolucao(id) {
+      if (!confirm('Excluir esta devolução?')) return;
+      const resultado = await window.api.deletar('devolucoes', id);
+      if (resultado.sucesso) { showToast('✅ Excluída!', 'success'); await loadDevolucoes(); }
+      else showToast('❌ Erro: ' + resultado.erro, 'error');
+    }
+
+    document.addEventListener('click', function(e) {
+      if (e.target.classList.contains('modal')) e.target.classList.remove('open');
+    });
+    document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('filter-devolucao-month').value = String(new Date().getMonth() + 1);
+      document.getElementById('filter-devolucao-year').value = new Date().getFullYear();
+      loadDevolucoes();
+    });
+
+    window.loadDevolucoes = loadDevolucoes; window.renderDevolucoes = renderDevolucoes;
+    window.openDevolucaoModal = openDevolucaoModal; window.closeDevolucaoModal = closeDevolucaoModal;
+    window.saveDevolucao = saveDevolucao; window.cancelarDevolucao = cancelarDevolucao;
+    window.deleteDevolucao = deleteDevolucao; window.showToast = showToast; window.fazerLogout = fazerLogout;
+  </script>
+
+  <script src="../js/carregarMenu.js"></script>
+
+  <script src="../js/glitter.js"></script>
+</body>
+</html>
