@@ -1,25 +1,44 @@
 ﻿# Atualizações automáticas do SUIT-TECH
 
-O aplicativo usa `electron-updater` e o provedor GitHub Releases. O destino configurado é `MATGON05/suit-tech-releases`.
+O aplicativo usa `electron-updater` e o provedor GitHub Releases. O destino configurado é `MATGON05/suit-tech-releases`. O workflow publica o instalador Windows e, em seguida, o instalador universal macOS na mesma Release.
+
+## Requisito para o macOS
+
+O auto-updater do Electron no macOS exige que o aplicativo seja assinado. O workflow também notariza a versão para reduzir os bloqueios do Gatekeeper. Antes de publicar uma versão Mac, configure no repositório GitHub os seguintes **Actions secrets**:
+
+| Secret | Conteúdo |
+|---|---|
+| `MACOS_CERTIFICATE` | Certificado Apple Developer ID Application exportado como `.p12` e codificado em Base64 |
+| `MACOS_CERTIFICATE_PASSWORD` | Senha usada ao exportar o arquivo `.p12` |
+| `APPLE_ID` | Apple ID associado à conta Apple Developer |
+| `APPLE_APP_SPECIFIC_PASSWORD` | Senha específica de app gerada na conta Apple |
+| `APPLE_TEAM_ID` | Team ID da conta Apple Developer |
+
+O certificado deve ser um certificado válido **Developer ID Application**. Para codificar o `.p12` em Base64 no Mac, use `base64 -i certificado.p12 | pbcopy` e cole o conteúdo no secret `MACOS_CERTIFICATE`. Não coloque o certificado, senha ou outras credenciais no código-fonte. Sem esses secrets, o job macOS falha intencionalmente em vez de publicar um app sem assinatura que não possa atualizar-se com segurança.
 
 ## Publicar uma nova versão
 
 1. Altere o código.
-2. Atualize o campo `version` em `package.json`, por exemplo de `1.0.1` para `1.0.2`.
+2. Atualize o campo `version` em `package.json` (e o campo correspondente no `package-lock.json`), por exemplo de `1.0.11` para `1.0.12`.
 3. Crie um commit e uma tag com o mesmo número, usando o prefixo `v`:
 
 ```bash
 git add .
-git commit -m "Versão 1.0.2"
-git tag v1.0.2
+git commit -m "Versão 1.0.12"
+git tag v1.0.12
 git push origin main --tags
 ```
 
-4. O workflow `.github/workflows/release.yml` será executado em um Windows do GitHub, gerará o instalador NSIS e publicará os arquivos da Release.
-5. Nos computadores instalados, abra **Ferramentas → Atualização do Sistema → Verificar atualização**. O programa também faz uma verificação automática alguns segundos após iniciar.
+4. O workflow `.github/workflows/release.yml` será executado: primeiro gera/publica o instalador NSIS de Windows e depois, em um runner macOS, gera/publica os arquivos universais `.dmg` e `.zip` assinados e a metadata de atualização do macOS.
+5. Nos computadores instalados, o programa verifica atualizações alguns segundos após iniciar. Em **Ferramentas → Atualização do Sistema → Verificar atualização**, também é possível fazer uma verificação manual, baixar e instalar a atualização. O app precisa ser instalado pelo instalador oficial; `npm start` não recebe atualizações.
+
+## Instalação inicial no Mac
+
+Cada Mac precisa instalar uma vez o arquivo `.dmg` da Release. As atualizações seguintes serão verificadas pelo próprio aplicativo. O pacote universal atende Macs Intel e Apple Silicon.
 
 ## Observações
 
-A atualização automática funciona em instaladores gerados pelo `electron-builder` com alvo Windows NSIS. A versão em desenvolvimento (`npm start`) informa que a atualização só está disponível na versão instalada.
-
-O repositório de releases precisa existir e o primeiro workflow precisa ser autorizado no GitHub. O código-fonte não deve ser colocado nesse repositório público de releases se a intenção for mantê-lo privado.
+- O job macOS depende do job Windows para publicar os ativos na mesma Release em sequência.
+- A atualização automática no Mac depende da assinatura Apple válida e da correspondência da identidade de assinatura entre versões.
+- O build de Windows permanece NSIS e mantém o comportamento de atualização já existente.
+- O primeiro workflow precisa ter permissão para publicar Releases no GitHub. Não armazene o código-fonte em um repositório público se a intenção for mantê-lo privado.

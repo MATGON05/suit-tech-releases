@@ -1,6 +1,6 @@
 {
   "name": "suit-tech-sistema",
-  "version": "1.0.12",
+  "version": "1.0.11",
   "description": "Sistema de Gestão SUIT-TECH - Assistência Técnica",
   "main": "src/main/main.js",
   "scripts": {
@@ -8,7 +8,8 @@
     "dev": "electron . --dev",
     "build": "electron-builder",
     "postinstall": "electron-builder install-app-deps",
-    "release": "electron-builder --win --publish always"
+    "release": "electron-builder --win --publish always",
+    "release:mac": "electron-builder --mac --publish always"
   },
   "author": "SUIT-TECH Soluções em TI",
   "license": "MIT",
@@ -45,6 +46,24 @@
       "createStartMenuShortcut": true,
       "installerIcon": "src/renderer/assets/novo_icone.ico",
       "uninstallerIcon": "src/renderer/assets/novo_icone.ico"
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": ["universal"]
+        },
+        {
+          "target": "zip",
+          "arch": ["universal"]
+        }
+      ],
+      "icon": "src/renderer/assets/novo_icone.icns",
+      "category": "public.app-category.business",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist"
     },
     "publish": {
       "provider": "github",
