@@ -16,21 +16,26 @@ O auto-updater do Electron no macOS exige que o aplicativo seja assinado. O work
 
 O certificado deve ser um certificado válido **Developer ID Application**. Para codificar o `.p12` em Base64 no Mac, use `base64 -i certificado.p12 | pbcopy` e cole o conteúdo no secret `MACOS_CERTIFICATE`. Não coloque o certificado, senha ou outras credenciais no código-fonte. Sem esses secrets, o job macOS falha intencionalmente em vez de publicar um app sem assinatura que não possa atualizar-se com segurança.
 
-## Publicar uma nova versão
+## Publicar a versão 1.0.13
 
-1. Altere o código.
-2. Atualize o campo `version` em `package.json` (e o campo correspondente no `package-lock.json`), por exemplo de `1.0.11` para `1.0.12`.
-3. Crie um commit e uma tag com o mesmo número, usando o prefixo `v`:
+O projeto está configurado para a versão `1.0.13`, pois a tag `v1.0.12` já existe. No clone do repositório do GitHub, depois de copiar os arquivos atualizados para dentro dele, confira e publique assim:
 
-```bash
-git add .
-git commit -m "Versão 1.0.12"
-git tag v1.0.12
+```powershell
+node -p "require('./package.json').version"
+# Deve imprimir 1.0.13
+
+git status --short
+git add package.json package-lock.json ATUALIZACOES-GITHUB.md
+git commit -m "Prepara versão 1.0.13"
+git tag v1.0.13
 git push origin main --tags
 ```
 
-4. O workflow `.github/workflows/release.yml` será executado: primeiro gera/publica o instalador NSIS de Windows e depois, em um runner macOS, gera/publica os arquivos universais `.dmg` e `.zip` assinados e a metadata de atualização do macOS.
-5. Nos computadores instalados, o programa verifica atualizações alguns segundos após iniciar. Em **Ferramentas → Atualização do Sistema → Verificar atualização**, também é possível fazer uma verificação manual, baixar e instalar a atualização. O app precisa ser instalado pelo instalador oficial; `npm start` não recebe atualizações.
+Se o commit disser que não há alterações, confira `git status` e se copiou os arquivos para o clone correto. Se a tag `v1.0.13` já existir, não a force nem a apague: escolha a próxima versão patch, atualize `package.json` e as duas ocorrências da versão neste `package-lock.json`, e use a nova versão no commit e na tag.
+
+O workflow `.github/workflows/release.yml` será executado após o envio de uma nova tag: primeiro gera/publica o instalador NSIS de Windows e depois, em um runner macOS, gera/publica os arquivos universais `.dmg` e `.zip` assinados e a metadata de atualização do macOS.
+
+Nos computadores instalados, o programa verifica atualizações alguns segundos após iniciar. Em **Ferramentas → Atualização do Sistema → Verificar atualização**, também é possível fazer uma verificação manual, baixar e instalar a atualização. O app precisa ser instalado pelo instalador oficial; `npm start` não recebe atualizações.
 
 ## Instalação inicial no Mac
 
