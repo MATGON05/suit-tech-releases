@@ -1,6 +1,6 @@
 {
   "name": "suit-tech-sistema",
-  "version": "1.0.16",
+  "version": "1.0.17",
   "description": "Sistema de Gestão SUIT-TECH - Assistência Técnica",
   "main": "src/main/main.js",
   "scripts": {
@@ -52,11 +52,15 @@
       "target": [
         {
           "target": "dmg",
-          "arch": ["universal"]
+          "arch": [
+            "universal"
+          ]
         },
         {
           "target": "zip",
-          "arch": ["universal"]
+          "arch": [
+            "universal"
+          ]
         }
       ],
       "icon": "src/renderer/assets/novo_icone.icns",
