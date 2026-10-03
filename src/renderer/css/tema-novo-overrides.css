@@ -1,0 +1,27 @@
+﻿/* Overrides para o menu */
+.topbar h2 {
+  /* Gradiente com text-fill transparente fazia emojis/ícones sumirem. */
+  background: none !important;
+  -webkit-background-clip: border-box !important;
+  -webkit-text-fill-color: var(--text) !important;
+  color: var(--text) !important;
+}
+
+#menu-container .menu-group-header {
+  color: var(--text-secondary) !important;
+}
+#menu-container .menu-group-header:hover {
+  color: var(--text) !important;
+  background: var(--surface-2) !important;
+}
+#menu-container .menu-group-items a {
+  color: var(--text-secondary) !important;
+}
+#menu-container .menu-group-items a:hover {
+  color: var(--text) !important;
+  background: var(--surface-2) !important;
+}
+#menu-container .menu-group-items a.active {
+  color: var(--primary) !important;
+  background: var(--primary-light) !important;
+}
