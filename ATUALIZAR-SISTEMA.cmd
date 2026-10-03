@@ -1,5 +1,5 @@
-﻿@echo off
+@echo off
 setlocal
 cd /d "%~dp0"
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0atualizar-sistema.ps1"
-endlocal
+powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%~dp0atualizar-sistema.ps1"
+exit /b %ERRORLEVEL%
