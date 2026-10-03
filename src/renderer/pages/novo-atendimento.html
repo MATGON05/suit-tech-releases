@@ -1,0 +1,567 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Entrada de Equipemento - SUIT-TECH</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/tema-novo-overrides.css">
+  <link rel="stylesheet" href="../css/theme.css">
+  <script src="../js/theme.js"></script>
+  <style>
+    .intake-page { max-width: 1440px; margin: 0 auto; }
+    .intake-hero { display:flex; align-items:center; justify-content:space-between; gap:24px; padding:24px 26px; margin-bottom:18px; border:1px solid var(--border); border-radius:16px; background:linear-gradient(120deg, var(--surface), var(--surface-2)); box-shadow:var(--shadow); }
+    .hero-copy { max-width:760px; }
+    .hero-kicker { color:var(--primary); font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.14em; margin-bottom:8px; }
+    .intake-hero h1 { font-size:clamp(22px,3vw,31px); margin:0 0 7px; color:var(--text); }
+    .intake-hero p { color:var(--text-secondary); line-height:1.55; margin:0; font-size:14px; }
+    .os-ticket { min-width:210px; padding:14px 18px; border:1px solid rgba(249,115,22,.38); border-radius:12px; background:var(--primary-light); text-align:right; }
+    .os-ticket small { display:block; color:var(--text-muted); font-size:10px; text-transform:uppercase; letter-spacing:.12em; margin-bottom:5px; }
+    .os-ticket strong { color:var(--primary); font-size:20px; letter-spacing:.04em; }
+    .intake-progress { display:grid; grid-template-columns:repeat(4,1fr); gap:9px; margin-bottom:18px; }
+    .progress-step { display:flex; align-items:center; gap:10px; min-height:48px; padding:9px 12px; border:1px solid var(--border); border-radius:10px; background:var(--surface); color:var(--text-secondary); font-size:12px; font-weight:600; }
+    .progress-num { display:grid; place-items:center; width:25px; height:25px; border-radius:50%; color:var(--primary); background:var(--primary-light); font-size:11px; font-weight:800; flex:none; }
+    .intake-layout { display:grid; grid-template-columns:minmax(0,1fr) 310px; align-items:start; gap:18px; }
+    .intake-sections { display:flex; flex-direction:column; gap:15px; }
+    .intake-card { min-width:0; padding:20px; border:1px solid var(--border); border-radius:14px; background:var(--surface); box-shadow:0 4px 16px rgba(0,0,0,.16); }
+    .intake-card-head { display:flex; align-items:flex-start; gap:12px; margin-bottom:17px; }
+    .intake-icon { display:grid; place-items:center; width:38px; height:38px; flex:none; border:1px solid var(--border); border-radius:11px; background:var(--surface-2); font-size:18px; }
+    .intake-card-head h3 { margin:1px 0 4px; color:var(--text); font-size:16px; }
+    .intake-card-head p { margin:0; color:var(--text-muted); font-size:12px; line-height:1.45; }
+    .form-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:13px; }
+    .span-2 { grid-column:span 2; }
+    .form-group { min-width:0; }
+    .form-group label { display:block; margin-bottom:6px; color:var(--text-secondary); font-size:12px; font-weight:650; }
+    .required-mark { color:var(--primary); }
+    .form-group input,.form-group select,.form-group textarea { width:100%; min-height:39px; padding:9px 11px; border:1px solid var(--border-2); border-radius:8px; background:var(--bg); color:var(--text); font:inherit; font-size:13px; }
+    .form-group textarea { min-height:86px; resize:vertical; line-height:1.5; }
+    .form-group input:focus,.form-group select:focus,.form-group textarea:focus { outline:2px solid rgba(249,115,22,.2); border-color:var(--primary); }
+    .form-group input[readonly] { opacity:.78; }
+    .field-hint { display:block; margin-top:5px; color:var(--text-muted); font-size:11px; line-height:1.4; }
+    .client-search-row { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px; }
+    .client-search-results { display:flex; flex-direction:column; gap:6px; max-height:250px; overflow:auto; margin-top:7px; }
+    .client-search-results[hidden] { display:none; }
+    .client-result { display:flex; flex-direction:column; gap:3px; width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--surface-2); color:var(--text); text-align:left; cursor:pointer; }
+    .client-result:hover,.client-result:focus { border-color:var(--primary); background:var(--primary-light); outline:none; }
+    .client-result strong { font-size:12px; }
+    .client-result small,.client-empty { color:var(--text-muted); font-size:11px; }
+    .client-empty { padding:10px 12px; border:1px dashed var(--border); border-radius:8px; line-height:1.5; }
+    .divider-label { grid-column:span 2; display:flex; align-items:center; gap:9px; margin:4px 0 -2px; color:var(--text-muted); font-size:10px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; }
+    .divider-label:after { content:''; height:1px; flex:1; background:var(--border); }
+    .chip-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
+    .check-chip { display:flex; align-items:center; gap:8px; min-height:39px; padding:8px 10px; border:1px solid var(--border); border-radius:9px; background:var(--surface-2); color:var(--text-secondary); font-size:12px; cursor:pointer; }
+    .check-chip:has(input:checked) { border-color:var(--primary); background:var(--primary-light); color:var(--text); }
+    .check-chip input { accent-color:var(--primary); }
+    .condition-table { display:flex; flex-direction:column; gap:7px; }
+    .condition-row { display:grid; grid-template-columns:minmax(150px,1fr) minmax(160px,.7fr); align-items:center; gap:12px; padding:8px 10px; border:1px solid var(--border); border-radius:8px; background:var(--surface-2); }
+    .condition-row label { color:var(--text-secondary); font-size:12px; }
+    .condition-row select { width:100%; min-height:34px; padding:6px 9px; border:1px solid var(--border); border-radius:7px; background:var(--bg); color:var(--text); font-size:12px; }
+    .privacy-note { display:flex; gap:10px; margin-top:14px; padding:12px; border:1px solid rgba(59,130,246,.3); border-radius:9px; background:var(--info-bg); color:var(--text-secondary); font-size:12px; line-height:1.5; }
+    .privacy-note strong { color:var(--text); }
+    .consent-list { display:flex; flex-direction:column; gap:9px; margin-top:15px; }
+    .consent-item { display:flex; align-items:flex-start; gap:9px; padding:11px 12px; border:1px solid var(--border); border-radius:9px; color:var(--text-secondary); font-size:12px; line-height:1.5; }
+    .consent-item input { margin-top:2px; accent-color:var(--primary); flex:none; }
+    .intake-summary { position:sticky; top:14px; }
+    .summary-status { display:flex; align-items:center; gap:8px; margin:12px 0 15px; padding:9px 10px; border:1px solid rgba(245,158,11,.3); border-radius:8px; background:var(--warning-bg); color:var(--warning); font-size:12px; font-weight:700; }
+    .summary-line { display:flex; justify-content:space-between; gap:12px; padding:10px 0; border-bottom:1px solid var(--border); font-size:12px; }
+    .summary-line span { color:var(--text-muted); }
+    .summary-line strong { max-width:58%; color:var(--text); text-align:right; overflow-wrap:anywhere; }
+    .summary-problem { margin-top:14px; padding:12px; border:1px solid var(--border); border-radius:9px; background:var(--surface-2); }
+    .summary-problem small { display:block; color:var(--text-muted); font-size:10px; text-transform:uppercase; letter-spacing:.08em; margin-bottom:6px; }
+    .summary-problem p { margin:0; color:var(--text-secondary); font-size:12px; line-height:1.5; overflow-wrap:anywhere; }
+    .summary-actions { display:flex; flex-direction:column; gap:8px; margin-top:16px; }
+    .summary-actions .btn { width:100%; justify-content:center; }
+    .summary-note { margin:12px 0 0; color:var(--text-muted); font-size:11px; line-height:1.5; }
+    .saved-banner { display:none; margin:0 0 16px; padding:12px 15px; border:1px solid rgba(34,197,94,.35); border-radius:10px; background:var(--success-bg); color:var(--text); font-size:13px; }
+    .saved-banner.visible { display:block; }
+    .actions-top { display:flex; gap:8px; flex-wrap:wrap; }
+    @media(max-width:1050px) { .intake-layout { grid-template-columns:minmax(0,1fr) 270px; } .chip-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+    @media(max-width:850px) { .intake-layout { grid-template-columns:1fr; } .intake-summary { position:static; grid-row:1; } .intake-progress { grid-template-columns:repeat(2,1fr); } .summary-actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); } }
+    @media(max-width:600px) { .intake-hero { align-items:flex-start; flex-direction:column; padding:19px; } .os-ticket { width:100%; text-align:left; } .intake-progress { gap:6px; } .progress-step { padding:8px; font-size:10px; } .form-grid,.chip-grid { grid-template-columns:1fr; } .span-2,.divider-label { grid-column:span 1; } .condition-row { grid-template-columns:1fr; gap:7px; } .intake-card { padding:15px; } .summary-actions { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand"><span class="logo"><img src="../assets/logo.png" alt="SUIT-TECH"></span><div><h1>SUIT-TECH</h1><small>Assistência Técnica</small></div></div>
+      <div id="menu-container"></div>
+      <footer class="sidebar-footer"><span>Recepção técnica</span><br><button onclick="fazerLogout()" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:12px;margin-top:8px;">🚪 Sair</button></footer>
+    </aside>
+    <main class="content intake-page">
+      <header class="topbar">
+        <div class="topbar-left"><div><h2>📥 Entrada de Equipemento</h2><small style="color:var(--text-muted);">Registro de recepção e avaliação técnica</small></div></div>
+        <div class="topbar-right actions-top">
+          <button class="btn" type="button" onclick="window.location.href='orcamentos.html'">Ordens e orçamentos</button>
+          <button class="btn" type="button" onclick="window.location.href='index.html'">← Dashboard</button>
+        </div>
+      </header>
+
+      <section class="intake-hero">
+        <div class="hero-copy">
+          <div class="hero-kicker">Recepção técnica · SUIT-TECH</div>
+          <h1>Registre a entrada com clareza.</h1>
+          <p>Identifique o cliente e o equipemento, documente as condições observadas e recolha a autorização para avaliação. O orçamento e o pagamento ficam para uma etapa posterior.</p>
+        </div>
+        <div class="os-ticket"><small>Ordem de serviço</small><strong id="os-display">Gerando…</strong></div>
+      </section>
+
+      <div class="intake-progress" aria-label="Etapas de recepção">
+        <div class="progress-step"><span class="progress-num">01</span> Cliente</div>
+        <div class="progress-step"><span class="progress-num">02</span> Equipemento</div>
+        <div class="progress-step"><span class="progress-num">03</span> Condições e queixa</div>
+        <div class="progress-step"><span class="progress-num">04</span> Autorização</div>
+      </div>
+
+      <div id="toast" class="toast"></div>
+      <div id="saved-banner" class="saved-banner" role="status"></div>
+
+      <form id="atendimento-form" class="intake-form" onsubmit="salvarAtendimento(event)">
+        <div class="intake-layout">
+          <div class="intake-sections">
+            <section class="intake-card">
+              <div class="intake-card-head"><span class="intake-icon">👤</span><div><h3>Dados do cliente</h3><p>Pesquise um cadastro existente ou registre um novo cliente.</p></div></div>
+              <div class="form-grid">
+                <div class="form-group span-2">
+                  <label for="cliente-busca">Pesquisar cliente cadastrado</label>
+                  <div class="client-search-row">
+                    <input id="cliente-busca" type="search" autocomplete="off" placeholder="Digite nome, telefone ou CPF" oninput="buscarCliente()" aria-controls="cliente-resultados" aria-autocomplete="list">
+                    <button class="btn" type="button" onclick="selecionarCliente('')">＋ Novo cliente</button>
+                  </div>
+                  <div id="cliente-resultados" class="client-search-results" role="listbox" aria-label="Resultados de clientes" hidden></div>
+                  <input id="cliente-select" type="hidden" value="">
+                  <small class="field-hint">A pesquisa aceita nome (inclusive parcial), telefone ou CPF, com ou sem pontuação.</small>
+                </div>
+                <div class="form-group"><label for="cliente-nome">Nome completo <span class="required-mark">*</span></label><input id="cliente-nome" required autocomplete="name" placeholder="Nome do responsável pelo equipemento"></div>
+                <div class="form-group"><label for="cliente-telefone">Telefone / WhatsApp <span class="required-mark">*</span></label><input id="cliente-telefone" required type="tel" inputmode="tel" autocomplete="tel" placeholder="(00) 00000-0000"></div>
+                <div class="form-group"><label for="cliente-cpf">CPF</label><input id="cliente-cpf" inputmode="numeric" placeholder="Opcional"></div>
+                <div class="form-group"><label for="cliente-email">E-mail</label><input id="cliente-email" type="email" autocomplete="email" placeholder="cliente@email.com"></div>
+              </div>
+            </section>
+
+            <section class="intake-card">
+              <div class="intake-card-head"><span class="intake-icon">📱</span><div><h3>Identificação do equipemento</h3><p>Registre os identificadores físicos para evitar trocas e facilitar o acompanhamento.</p></div></div>
+              <div class="form-grid">
+                <div class="form-group"><label for="aparelho">Categoria <span class="required-mark">*</span></label><select id="aparelho" required><option value="">Selecione</option><option>Celular</option><option>Tablet</option><option>Notebook</option><option>Computador</option><option>Videogame</option><option>Smartwatch</option><option>Televisor</option><option>Impressora</option><option>Outro</option></select></div>
+                <div class="form-group"><label for="tipo-atendimento">Tipo de entrada</label><select id="tipo-atendimento"><option value="diagnostico">Diagnóstico / avaliação</option><option value="reparo">Reparo solicitado</option><option value="garantia">Garantia</option><option value="revisao">Revisão preventiva</option><option value="outro">Outro</option></select></div>
+                <div class="form-group"><label for="marca">Marca</label><input id="marca" placeholder="Ex.: Samsung, Apple, Lenovo"></div>
+                <div class="form-group"><label for="modelo">Modelo <span class="required-mark">*</span></label><input id="modelo" required placeholder="Ex.: Galaxy A54, IdeaPad 3"></div>
+                <div class="form-group"><label for="cor">Cor</label><input id="cor" placeholder="Ex.: Preto, Azul"></div>
+                <div class="form-group"><label for="serie">Número de série</label><input id="serie" autocomplete="off" placeholder="Identificação na etiqueta"></div>
+                <div class="form-group span-2"><label for="imei">IMEI (quando aplicável)</label><input id="imei" inputmode="numeric" autocomplete="off" maxlength="30" placeholder="Digite o IMEI do aparelho, se houver"><small class="field-hint">Pode ser consultado na etiqueta ou no próprio equipemento; não é necessário para todos os tipos.</small></div>
+                <div class="divider-label">Acessórios entregues com o equipemento</div>
+                <div class="chip-grid span-2" id="acessorios-lista"></div>
+                <div class="form-group span-2"><label for="acessorios-outros">Outros itens / observações dos acessórios</label><input id="acessorios-outros" placeholder="Ex.: capa azul, bolsa, cartão de memória — ou 'nenhum'"></div>
+              </div>
+            </section>
+
+            <section class="intake-card">
+              <div class="intake-card-head"><span class="intake-icon">🧾</span><div><h3>Queixa e avaliação visual</h3><p>Separe o relato do cliente daquilo que foi observado na recepção.</p></div></div>
+              <div class="form-grid">
+                <div class="form-group span-2"><label for="defeito">Problema relatado pelo cliente <span class="required-mark">*</span></label><textarea id="defeito" required placeholder="Descreva com as palavras do cliente: o que aconteceu, desde quando e em que circunstâncias."></textarea></div>
+                <div class="form-group span-2"><label>Condição observada na entrada</label><div class="condition-table" id="condition-table"></div><small class="field-hint">Use “Não testado” quando não for possível confirmar o funcionamento na recepção.</small></div>
+                <div class="form-group span-2"><label for="obs-entrada">Marcas, danos e observações de entrada</label><textarea id="obs-entrada" placeholder="Riscos, amassados, tela trincada, sinais de líquido, equipemento já aberto ou outra particularidade visível."></textarea></div>
+              </div>
+            </section>
+
+            <section class="intake-card">
+              <div class="intake-card-head"><span class="intake-icon">🛡️</span><div><h3>Triagem, prazo e autorização</h3><p>Registre como o equipemento chegou e confirme as condições antes de concluir a entrada.</p></div></div>
+              <div class="form-grid">
+                <div class="form-group"><label for="acesso-aparelho">Acesso para testes</label><select id="acesso-aparelho"><option value="desbloqueado">Entregue desbloqueado</option><option value="verbal">Acesso informado verbalmente — não registrado</option><option value="nao_informado">Senha/código não informado</option><option value="nao_testar">Cliente não autoriza testes de acesso</option><option value="nao_aplicavel">Não aplicável</option></select></div>
+                <div class="form-group"><label for="prioridade">Prioridade</label><select id="prioridade"><option value="normal">Normal</option><option value="urgente">Urgente — confirmar prazo com a equipe</option></select></div>
+                <div class="form-group"><label for="previsao">Previsão para retorno do diagnóstico</label><input id="previsao" type="date"><small class="field-hint">Estimativa de contato, não representa promessa de conclusão do reparo.</small></div>
+                <div class="form-group"><label for="tecnico">Responsável pela recepção</label><input id="tecnico" placeholder="Nome do atendente / técnico"></div>
+                <div class="form-group span-2"><label for="obs-internas">Observação interna</label><textarea id="obs-internas" rows="2" placeholder="Informação para a equipe técnica, não incluída no comprovante do cliente."></textarea></div>
+              </div>
+              <div class="privacy-note"><span>🔐</span><div><strong>Privacidade do cliente</strong><br>Não digite senhas, PINs ou padrões de desbloqueio nesta ficha. Quando necessário, solicite que o cliente desbloqueie o aparelho no momento do teste.</div></div>
+              <div class="consent-list">
+                <label class="consent-item"><input id="autorizacao-diagnostico" type="checkbox" required><span>Confirmo que o cliente autorizou a avaliação/diagnóstico e a elaboração de orçamento. Nenhum reparo será iniciado sem aprovação do orçamento.</span></label>
+                <label class="consent-item"><input id="confirmacao-backup" type="checkbox" required><span>O cliente foi informado de que deve manter cópia de segurança dos dados pessoais e que a ficha não armazena senhas ou códigos de acesso.</span></label>
+              </div>
+            </section>
+          </div>
+
+          <aside class="intake-card intake-summary">
+            <div class="intake-card-head"><span class="intake-icon">📋</span><div><h3>Resumo da recepção</h3><p>Confira os principais dados antes de gravar.</p></div></div>
+            <div class="summary-status"><span>●</span><span id="summary-status-text">Aguardando preenchimento</span></div>
+            <div class="summary-line"><span>Ordem de serviço</span><strong id="summary-os">—</strong></div>
+            <div class="summary-line"><span>Cliente</span><strong id="resumo-cliente">Não informado</strong></div>
+            <div class="summary-line"><span>Equipemento</span><strong id="resumo-aparelho">Não informado</strong></div>
+            <div class="summary-line"><span>Tipo de entrada</span><strong id="resumo-tipo">Diagnóstico / avaliação</strong></div>
+            <div class="summary-line"><span>Data da entrada</span><strong id="resumo-data">—</strong></div>
+            <div class="summary-problem"><small>Problema relatado</small><p id="resumo-defeito">Aguardando descrição do cliente.</p></div>
+            <div class="summary-actions">
+              <button type="submit" class="btn btn-primary" id="btn-salvar">💾 Registrar entrada</button>
+              <button type="button" class="btn btn-success" id="btn-whatsapp" onclick="salvarEEnviarComprovante()">📲 Registrar e enviar comprovante</button>
+              <button type="button" class="btn btn-purple" onclick="imprimirAtendimento()">🖨️ Imprimir ficha</button>
+              <button type="button" class="btn" id="btn-novo" onclick="novoAtendimento()" style="display:none;">＋ Nova entrada</button>
+            </div>
+            <p class="summary-note">A entrada cria uma OS em <strong>Ordens e orçamentos</strong> com situação de avaliação. Valores e pagamento serão preenchidos depois da análise técnica.</p>
+          </aside>
+        </div>
+      </form>
+    </main>
+  </div>
+
+  <script src="../js/api.js"></script>
+  <script src="../js/app.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/carregarMenu.js"></script>
+  <script>
+    const acessoriosOpcoes = ['Carregador','Cabo','Capa protetora','Cartão SIM','Cartão de memória','Caneta / stylus','Controle remoto','Bolsa / mochila'];
+    const condicoesEntrada = [
+      ['energia','Liga / energia'], ['tela','Tela'], ['carcaca','Carcaça / estrutura'],
+      ['camera','Câmeras / lentes'], ['audio','Áudio / microfone'], ['botoes','Botões / portas'],
+      ['umidade','Sinais de líquido / oxidação']
+    ];
+    let clientes = [];
+    let atendimentoSalvo = null;
+    let salvando = false;
+    let osAtual = '';
+    const money = value => `R$ ${(Number(value) || 0).toFixed(2).replace('.', ',')}`;
+    const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+    const dataHojeLocal = () => typeof window.dataLocalHojeISO === 'function' ? window.dataLocalHojeISO() : (() => { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })();
+
+    function gerarNumeroOS() {
+      const data = dataHojeLocal().replace(/-/g, '');
+      let codigo;
+      try { codigo = crypto.getRandomValues(new Uint32Array(1))[0].toString(36).slice(-5).toUpperCase(); }
+      catch (_) { codigo = Math.random().toString(36).slice(2, 7).toUpperCase(); }
+      return `OS-${data}-${codigo}`;
+    }
+
+    function renderAcessorios() {
+      document.getElementById('acessorios-lista').innerHTML = acessoriosOpcoes.map((item, i) => `<label class="check-chip"><input type="checkbox" name="acessorios" value="${escapeHtml(item)}" id="acessorio-${i}"><span>${escapeHtml(item)}</span></label>`).join('');
+    }
+
+    function renderCondicoes() {
+      const estados = [
+        ['nao_testado','Não testado'], ['bom','Sem avaria aparente'],
+        ['avariado','Com avaria aparente'], ['nao_aplicavel','Não aplicável']
+      ];
+      document.getElementById('condition-table').innerHTML = condicoesEntrada.map(([id, label]) => `
+        <div class="condition-row"><label for="condicao-${id}">${escapeHtml(label)}</label>
+          <select id="condicao-${id}" data-condicao="${id}">${estados.map(([value, text]) => `<option value="${value}">${text}</option>`).join('')}</select>
+        </div>`).join('');
+    }
+
+    async function carregarClientes() {
+      try {
+        const resultado = await window.api.buscar('clientes');
+        if (!resultado?.sucesso) throw new Error(resultado?.erro || 'Não foi possível carregar os clientes.');
+        clientes = (resultado.dados || []).slice().sort((a,b) => String(a.nome || '').localeCompare(String(b.nome || ''), 'pt-BR'));
+      } catch (erro) {
+        console.error('Erro ao carregar clientes:', erro);
+        showToast('Não foi possível carregar a lista de clientes: ' + erro.message, 'error');
+      }
+    }
+
+    function normalizarPesquisaCliente(valor) {
+      return String(valor || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    }
+
+    function clienteCorrespondeBusca(cliente, termo) {
+      const buscaTexto = normalizarPesquisaCliente(termo);
+      if (!buscaTexto) return false;
+      const buscaNumeros = String(termo || '').replace(/\D/g, '');
+      const buscaEhNumerica = /^[\d\s()+./-]+$/.test(String(termo || ''));
+      const nome = normalizarPesquisaCliente(cliente?.nome);
+      const telefone = normalizarPesquisaCliente(cliente?.telefone);
+      const cpf = normalizarPesquisaCliente(cliente?.cpf);
+      const telefoneNumeros = String(cliente?.telefone || '').replace(/\D/g, '');
+      const cpfNumeros = String(cliente?.cpf || '').replace(/\D/g, '');
+      return nome.includes(buscaTexto) || telefone.includes(buscaTexto) || cpf.includes(buscaTexto) ||
+        Boolean(buscaEhNumerica && buscaNumeros && (telefoneNumeros.includes(buscaNumeros) || cpfNumeros.includes(buscaNumeros)));
+    }
+
+    function limparCamposCliente() {
+      ['cliente-nome','cliente-telefone','cliente-cpf','cliente-email'].forEach(id => {
+        const input = document.getElementById(id);
+        input.readOnly = false;
+        input.value = '';
+      });
+    }
+
+    function buscarCliente() {
+      const busca = document.getElementById('cliente-busca');
+      const selecionado = document.getElementById('cliente-select');
+      const resultados = document.getElementById('cliente-resultados');
+      const termo = busca.value.trim();
+      if (selecionado.value) {
+        selecionado.value = '';
+        limparCamposCliente();
+      }
+      resultados.replaceChildren();
+      if (termo.length < 2) {
+        resultados.hidden = !termo;
+        if (termo) {
+          const aviso = document.createElement('div');
+          aviso.className = 'client-empty';
+          aviso.textContent = 'Digite pelo menos 2 caracteres para pesquisar.';
+          resultados.append(aviso);
+        }
+        busca.setAttribute('aria-expanded', String(Boolean(termo)));
+        atualizarResumo();
+        return;
+      }
+      const encontrados = clientes.filter(cliente => clienteCorrespondeBusca(cliente, termo)).slice(0, 10);
+      resultados.hidden = false;
+      if (!encontrados.length) {
+        const vazio = document.createElement('div');
+        vazio.className = 'client-empty';
+        vazio.textContent = 'Nenhum cadastro encontrado. Você pode preencher os dados abaixo ou iniciar um novo cadastro.';
+        resultados.append(vazio);
+      } else {
+        encontrados.forEach(cliente => {
+          const opcao = document.createElement('button');
+          opcao.type = 'button';
+          opcao.className = 'client-result';
+          opcao.setAttribute('role', 'option');
+          const nome = document.createElement('strong');
+          nome.textContent = cliente.nome || 'Cliente sem nome';
+          const detalhes = document.createElement('small');
+          detalhes.textContent = `Telefone: ${cliente.telefone || 'não informado'} · CPF: ${cliente.cpf || 'não informado'}`;
+          opcao.append(nome, detalhes);
+          opcao.addEventListener('click', () => selecionarCliente(cliente._id));
+          resultados.append(opcao);
+        });
+      }
+      busca.setAttribute('aria-expanded', 'true');
+    }
+
+    function selecionarCliente(id = document.getElementById('cliente-select').value) {
+      const campoId = document.getElementById('cliente-select');
+      const busca = document.getElementById('cliente-busca');
+      const resultados = document.getElementById('cliente-resultados');
+      const cliente = clientes.find(item => item._id === id);
+      resultados.hidden = true;
+      resultados.replaceChildren();
+      busca.setAttribute('aria-expanded', 'false');
+      campoId.value = cliente?._id || '';
+      const campos = ['cliente-nome','cliente-telefone','cliente-cpf','cliente-email'];
+      if (!cliente) {
+        busca.value = '';
+        limparCamposCliente();
+        atualizarResumo();
+        document.getElementById('cliente-nome').focus();
+        return;
+      }
+      document.getElementById('cliente-nome').value = cliente.nome || '';
+      document.getElementById('cliente-telefone').value = cliente.telefone || '';
+      document.getElementById('cliente-cpf').value = cliente.cpf || '';
+      document.getElementById('cliente-email').value = cliente.email || '';
+      campos.forEach(campo => { document.getElementById(campo).readOnly = true; });
+      busca.value = `${cliente.nome || 'Cliente sem nome'} — ${cliente.telefone || 'telefone não informado'} — CPF ${cliente.cpf || 'não informado'}`;
+      busca.setAttribute('aria-expanded', 'false');
+      atualizarResumo();
+    }
+
+    function condicoesSelecionadas() {
+      return Object.fromEntries([...document.querySelectorAll('[data-condicao]')].map(select => [select.dataset.condicao, select.value]));
+    }
+
+    function dadosAtendimento() {
+      const acessorios = [...document.querySelectorAll('input[name="acessorios"]:checked')].map(input => input.value);
+      const avaliacao = condicoesSelecionadas();
+      const checklist = condicoesEntrada.map(([id, label]) => `${label}: ${document.querySelector(`[data-condicao="${id}"] option:checked`)?.textContent || 'Não testado'}`);
+      const acessoriosOutros = document.getElementById('acessorios-outros').value.trim();
+      const defeito = document.getElementById('defeito').value.trim();
+      return {
+        cliente: document.getElementById('cliente-nome').value.trim(),
+        clienteId: document.getElementById('cliente-select').value || null,
+        telefone: document.getElementById('cliente-telefone').value.trim(),
+        cpf: document.getElementById('cliente-cpf').value.trim(),
+        email: document.getElementById('cliente-email').value.trim(),
+        aparelho: document.getElementById('aparelho').value,
+        tipo_atendimento: document.getElementById('tipo-atendimento').value,
+        marca: document.getElementById('marca').value.trim(),
+        modelo: document.getElementById('modelo').value.trim(),
+        cor: document.getElementById('cor').value.trim(),
+        serie: document.getElementById('serie').value.trim(),
+        imei: document.getElementById('imei').value.trim(),
+        defeito,
+        acessorios,
+        acessorios_outros: acessoriosOutros,
+        checklist_entrada: checklist,
+        avaliacao_entrada: avaliacao,
+        acesso_aparelho: document.getElementById('acesso-aparelho').value,
+        observacoes_entrada: document.getElementById('obs-entrada').value.trim(),
+        observacoes_internas: document.getElementById('obs-internas').value.trim(),
+        prioridade: document.getElementById('prioridade').value,
+        previsao_diagnostico: document.getElementById('previsao').value || null,
+        tecnico_responsavel: document.getElementById('tecnico').value.trim(),
+        autorizacao_diagnostico: document.getElementById('autorizacao-diagnostico').checked,
+        confirmacao_backup: document.getElementById('confirmacao-backup').checked,
+        autorizacoes_aceitas_em: new Date().toISOString(),
+        // Campos compatíveis com a lista de OS/orçamentos já existente; nenhum valor é cobrado na recepção.
+        mao_obra: 0,
+        pecas: 0,
+        desconto: 0,
+        extras: 0,
+        lucro: 0,
+        valor: 0,
+        forma_pagamento: 'Não informado',
+        pagamento: 'nao_pago',
+        status: 'pendente',
+        etapa_atendimento: 'recebido_para_avaliacao',
+        origem: 'novo_atendimento',
+        data: new Date().toISOString(),
+        data_entrada: dataHojeLocal(),
+        os: osAtual,
+        historico_status: [{ de: null, para: 'recebido_para_avaliacao', em: new Date().toISOString(), usuario: window.suitSessaoAtual?.()?.nome || 'Sistema' }]
+      };
+    }
+
+    function atualizarResumo() {
+      const nome = document.getElementById('cliente-nome').value.trim();
+      const categoria = document.getElementById('aparelho').value;
+      const modelo = document.getElementById('modelo').value.trim();
+      const marca = document.getElementById('marca').value.trim();
+      const equipemento = [categoria, marca, modelo].filter(Boolean).join(' · ');
+      document.getElementById('resumo-cliente').textContent = nome || 'Não informado';
+      document.getElementById('resumo-aparelho').textContent = equipemento || 'Não informado';
+      document.getElementById('resumo-tipo').textContent = document.getElementById('tipo-atendimento').selectedOptions[0]?.textContent || '—';
+      document.getElementById('resumo-defeito').textContent = document.getElementById('defeito').value.trim() || 'Aguardando descrição do cliente.';
+      document.getElementById('summary-os').textContent = osAtual || '—';
+      document.getElementById('resumo-data').textContent = new Date().toLocaleString('pt-BR');
+      const completo = Boolean(nome && document.getElementById('cliente-telefone').value.trim() && categoria && modelo && document.getElementById('defeito').value.trim());
+      document.getElementById('summary-status-text').textContent = completo ? 'Pronto para conferir e registrar' : 'Aguardando preenchimento';
+    }
+
+    async function salvarAtendimento(event, enviar=false) {
+      if (event) event.preventDefault();
+      if (atendimentoSalvo) { showToast('Esta entrada já foi registrada. Use “Nova entrada” para criar outra OS.', 'warning'); return atendimentoSalvo; }
+      if (salvando) return null;
+      const form = document.getElementById('atendimento-form');
+      if (!form.reportValidity()) return null;
+      const body = dadosAtendimento();
+      if (!body.cliente || !body.telefone || !body.aparelho || !body.modelo || !body.defeito) { showToast('Preencha os campos obrigatórios antes de registrar.', 'error'); return null; }
+      if (!body.autorizacao_diagnostico || !body.confirmacao_backup) { showToast('Confirme as autorizações e as orientações de dados para continuar.', 'error'); return null; }
+      if (!body.clienteId && body.cpf) {
+        const cpf = body.cpf.replace(/\D/g, '');
+        const duplicado = clientes.find(c => String(c.cpf || '').replace(/\D/g, '') === cpf);
+        if (cpf && duplicado) { showToast('Já existe um cliente com este CPF. O cadastro foi selecionado para você.', 'warning'); selecionarCliente(duplicado._id); return null; }
+      }
+      salvando = true;
+      const btn = document.getElementById('btn-salvar');
+      const btnWhatsapp = document.getElementById('btn-whatsapp');
+      btn.disabled = true; btnWhatsapp.disabled = true; btn.textContent = 'Registrando…';
+      try {
+        let clienteId = body.clienteId;
+        if (!clienteId) {
+          const novoCliente = await window.api.salvar('clientes', {
+            _id: 'cli_' + Date.now().toString(36), nome: body.cliente, telefone: body.telefone,
+            cpf: body.cpf, email: body.email, data_criacao: new Date().toISOString()
+          });
+          if (!novoCliente?.sucesso) throw new Error(novoCliente?.erro || 'Não foi possível registrar o cliente.');
+          clienteId = novoCliente.dados?._id || novoCliente.dados?.id || null;
+          body.clienteId = clienteId;
+        }
+        const resultado = await window.api.salvar('vendas', body);
+        if (!resultado?.sucesso) throw new Error(resultado?.erro || 'Não foi possível registrar a ordem de serviço.');
+        atendimentoSalvo = { ...body, _id: resultado.dados?._id || resultado.dados?.id || '' };
+        document.getElementById('os-display').textContent = body.os;
+        document.getElementById('saved-banner').textContent = `Entrada registrada com sucesso — ${body.os}. A OS está disponível em “Ordens e orçamentos” com situação de avaliação.`;
+        document.getElementById('saved-banner').classList.add('visible');
+        document.getElementById('summary-status-text').textContent = 'Entrada registrada';
+        document.getElementById('summary-status-text').parentElement.style.background = 'var(--success-bg)';
+        document.getElementById('summary-status-text').parentElement.style.color = 'var(--success)';
+        form.querySelectorAll('input,select,textarea').forEach(input => input.disabled = true);
+        btn.textContent = '✅ Entrada registrada';
+        btn.disabled = true; btnWhatsapp.style.display = 'none';
+        document.getElementById('btn-novo').style.display = 'inline-flex';
+        await carregarClientes();
+        showToast('Entrada registrada com sucesso. OS ' + body.os, 'success');
+        if (enviar) enviarComprovanteWhatsApp(atendimentoSalvo);
+        return atendimentoSalvo;
+      } catch (erro) {
+        console.error('Erro ao registrar entrada:', erro);
+        showToast('Não foi possível registrar a entrada: ' + erro.message, 'error');
+        btn.disabled = false; btnWhatsapp.disabled = false; btn.textContent = '💾 Registrar entrada';
+        return null;
+      } finally {
+        salvando = false;
+      }
+    }
+
+    async function salvarEEnviarComprovante() {
+      if (atendimentoSalvo) return enviarComprovanteWhatsApp(atendimentoSalvo);
+      await salvarAtendimento(null, true);
+    }
+
+    function enviarComprovanteWhatsApp(item) {
+      const numero = String(item.telefone || '').replace(/\D/g, '');
+      if (numero.length < 10) { showToast('Telefone inválido para abrir o WhatsApp.', 'error'); return; }
+      const mensagem = `Olá, ${item.cliente}! Recebemos seu equipemento na SUIT-TECH.\n\nOS: ${item.os}\nEquipemento: ${[item.aparelho,item.marca,item.modelo].filter(Boolean).join(' ')}\nRelato: ${item.defeito}\n\nO equipemento será avaliado. Nenhum reparo será iniciado sem sua aprovação do orçamento. A equipe entrará em contato com o diagnóstico.`;
+      window.location.href = `whatsapp://send?phone=55${numero}&text=${encodeURIComponent(mensagem)}`;
+    }
+
+    function imprimirAtendimento() {
+      const b = atendimentoSalvo || dadosAtendimento();
+      const win = window.open('', '_blank', 'width=900,height=760');
+      if (!win) { showToast('Permita janelas pop-up para imprimir a ficha.', 'error'); return; }
+      const estadoNome = value => ({nao_testado:'Não testado',bom:'Sem avaria aparente',avariado:'Com avaria aparente',nao_aplicavel:'Não aplicável'}[value] || 'Não testado');
+      const linhas = condicoesEntrada.map(([id,label]) => `<tr><td>${escapeHtml(label)}</td><td>${escapeHtml(estadoNome(b.avaliacao_entrada?.[id] || document.getElementById(`condicao-${id}`)?.value))}</td></tr>`).join('');
+      const acessorios = [...(b.acessorios || []), b.acessorios_outros].filter(Boolean).join(', ') || 'Nenhum item informado';
+      win.document.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>${escapeHtml(b.os)} - Ficha de recepção</title><style>body{font:14px Arial,sans-serif;color:#222;padding:30px;max-width:850px;margin:auto}header{display:flex;justify-content:space-between;border-bottom:3px solid #f97316;padding-bottom:15px;margin-bottom:20px}h1{margin:0;font-size:22px}h2{font-size:16px;margin:22px 0 8px;color:#b45309}.os{font-size:18px;font-weight:bold;color:#c2410c}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.box{padding:12px;border:1px solid #ccc;border-radius:7px;margin:8px 0}.label{font-size:10px;text-transform:uppercase;color:#666;font-weight:bold;margin-bottom:4px}.value{white-space:pre-wrap;line-height:1.5}table{width:100%;border-collapse:collapse}td,th{padding:8px;border-bottom:1px solid #ddd;text-align:left}.terms{font-size:11px;line-height:1.5;color:#555}.sign{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:55px;text-align:center}.sign div{border-top:1px solid #555;padding-top:8px}@media print{body{padding:0}}</style></head><body>
+        <header><div><h1>SUIT-TECH — Recepção de equipemento</h1><div>Ficha de entrada para avaliação técnica</div></div><div class="os">${escapeHtml(b.os)}</div></header>
+        <div class="grid"><div class="box"><div class="label">Cliente</div><div class="value">${escapeHtml(b.cliente)}<br>${escapeHtml(b.telefone)}${b.cpf ? '<br>CPF: '+escapeHtml(b.cpf) : ''}</div></div><div class="box"><div class="label">Entrada</div><div class="value">${escapeHtml(new Date(b.data || Date.now()).toLocaleString('pt-BR'))}<br>${escapeHtml(b.prioridade || 'normal')} · ${escapeHtml(b.tipo_atendimento || 'diagnostico')}</div></div></div>
+        <h2>Equipemento</h2><div class="box"><div class="value"><strong>${escapeHtml([b.aparelho,b.marca,b.modelo].filter(Boolean).join(' '))}</strong><br>Cor: ${escapeHtml(b.cor || '—')} · Série: ${escapeHtml(b.serie || '—')} · IMEI: ${escapeHtml(b.imei || '—')}<br>Acessórios: ${escapeHtml(acessorios)}</div></div>
+        <h2>Relato e condição de entrada</h2><div class="box"><div class="label">Problema informado pelo cliente</div><div class="value">${escapeHtml(b.defeito)}</div></div><table><thead><tr><th>Item avaliado</th><th>Condição</th></tr></thead><tbody>${linhas}</tbody></table><div class="box"><div class="label">Observações / marcas visíveis</div><div class="value">${escapeHtml(b.observacoes_entrada || '—')}</div></div>
+        <h2>Autorização e orientações</h2><p class="terms">O cliente autoriza a avaliação/diagnóstico e a elaboração de orçamento. Nenhum reparo será iniciado sem aprovação prévia. O cliente foi orientado a manter cópia de segurança dos seus dados. Senhas, PINs e padrões de desbloqueio não são armazenados nesta ficha.</p>
+        <div class="sign"><div>Assinatura do cliente</div><div>Responsável pela recepção</div></div><p style="margin-top:22px;color:#666;font-size:10px">Documento de recepção — não representa orçamento nem comprovante de pagamento.</p></body></html>`);
+      win.document.close(); win.focus(); win.print();
+    }
+
+    function novoAtendimento() {
+      atendimentoSalvo = null; salvando = false; osAtual = gerarNumeroOS();
+      const form = document.getElementById('atendimento-form'); form.reset();
+      form.querySelectorAll('input,select,textarea').forEach(input => input.disabled = false);
+      ['cliente-nome','cliente-telefone','cliente-cpf','cliente-email'].forEach(id => document.getElementById(id).readOnly = false);
+      document.getElementById('cliente-select').value = '';
+      document.getElementById('cliente-busca').value = '';
+      document.getElementById('cliente-resultados').replaceChildren();
+      document.getElementById('cliente-resultados').hidden = true;
+      document.getElementById('os-display').textContent = osAtual;
+      document.getElementById('saved-banner').classList.remove('visible');
+      document.getElementById('summary-status-text').parentElement.removeAttribute('style');
+      document.getElementById('summary-status-text').textContent = 'Aguardando preenchimento';
+      document.getElementById('btn-salvar').disabled = false;
+      document.getElementById('btn-salvar').textContent = '💾 Registrar entrada';
+      document.getElementById('btn-whatsapp').style.display = '';
+      document.getElementById('btn-whatsapp').disabled = false;
+      document.getElementById('btn-novo').style.display = 'none';
+      document.getElementById('resumo-data').textContent = new Date().toLocaleString('pt-BR');
+      atualizarResumo(); window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function showToast(mensagem, tipo='success') {
+      const toast=document.getElementById('toast'); if (!toast) return;
+      toast.textContent=mensagem; toast.className='toast show '+tipo;
+      setTimeout(()=>toast.className='toast',3500);
+    }
+
+    function fazerLogout() {
+      if (confirm('Deseja realmente sair?')) { localStorage.removeItem('sessao_suittech'); window.location.href='login.html'; }
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      osAtual = gerarNumeroOS();
+      document.getElementById('os-display').textContent = osAtual;
+      renderAcessorios(); renderCondicoes();
+      document.getElementById('resumo-data').textContent = new Date().toLocaleString('pt-BR');
+      document.getElementById('atendimento-form').addEventListener('input', atualizarResumo);
+      document.getElementById('atendimento-form').addEventListener('change', atualizarResumo);
+      await carregarClientes(); atualizarResumo();
+    });
+
+    window.salvarAtendimento = salvarAtendimento;
+    window.salvarEEnviarComprovante = salvarEEnviarComprovante;
+    window.enviarComprovanteWhatsApp = enviarComprovanteWhatsApp;
+    window.imprimirAtendimento = imprimirAtendimento;
+    window.novoAtendimento = novoAtendimento;
+    window.selecionarCliente = selecionarCliente;
+    window.buscarCliente = buscarCliente;
+    window.clienteCorrespondeBusca = clienteCorrespondeBusca;
+  </script>
+</body>
+</html>

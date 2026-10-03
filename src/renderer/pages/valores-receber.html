@@ -1,0 +1,503 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Valores a Receber - SUIT-TECH</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <script>
+    (function() {
+      const sessao = localStorage.getItem('sessao_suittech');
+      if (!sessao) { window.location.href = 'login.html'; return; }
+      try {
+        const dados = JSON.parse(sessao);
+        if (!dados.logado) { window.location.href = 'login.html'; return; }
+      } catch (e) { window.location.href = 'login.html'; }
+    })();
+  </script>
+  <link rel="stylesheet" href="../css/tema-novo-overrides.css">
+  <link rel="stylesheet" href="../css/theme.css">
+  <script src="../js/theme.js"></script>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <span class="logo"><img src="../assets/logo.png" alt="SUIT-TECH"></span>
+        <div>
+          <h1>SUIT-TECH</h1>
+          <small>Assistência Técnica</small>
+        </div>
+      </div>
+      <div id="menu-container"></div>
+      <footer class="sidebar-footer">
+        <span>Rodando local</span>
+        <br>
+        <button onclick="fazerLogout()" style="background: none; border: none; color: var(--danger); cursor: pointer; font-size: 12px; margin-top: 8px;">🚪 Sair</button>
+      </footer>
+    </aside>
+
+    <main class="content">
+      <header class="topbar">
+        <div class="topbar-left">
+          <h2>💰 Valores a Receber</h2>
+        </div>
+        <div class="topbar-right">
+          <button class="btn btn-primary" onclick="openReceberModal()">+ Novo Recebimento</button>
+        </div>
+      </header>
+
+      <section class="stats-grid">
+        <div class="stat-card accent-green"><span class="stat-label">💰 Total a Receber</span><strong class="stat-value" id="resumo-total">R$ 0,00</strong></div>
+        <div class="stat-card accent-gold"><span class="stat-label">📦 Valor de Entrada</span><strong class="stat-value" id="resumo-entrada">R$ 0,00</strong></div>
+        <div class="stat-card accent-orange"><span class="stat-label">📋 Valor das Parcelas</span><strong class="stat-value" id="resumo-parcelas">R$ 0,00</strong></div>
+        <div class="stat-card accent-red"><span class="stat-label">⏳ Falta Receber</span><strong class="stat-value" id="resumo-falta">R$ 0,00</strong></div>
+        <div class="stat-card accent-purple"><span class="stat-label">✅ Quitados</span><strong class="stat-value" id="resumo-quitados">0</strong></div>
+        <div class="stat-card accent-blue"><span class="stat-label">⏳ Pendentes</span><strong class="stat-value" id="resumo-pendentes">0</strong></div>
+      </section>
+
+      <section class="panel">
+        <div class="toolbar">
+          <input type="text" id="search-receber" placeholder="🔍 Buscar por cliente ou descrição..." oninput="renderReceber()">
+          <select id="filter-receber-status" onchange="renderReceber()">
+            <option value="">Todos</option>
+            <option value="pendente">Pendente</option>
+            <option value="parcial">Parcial</option>
+            <option value="quitado">Quitado</option>
+          </select>
+          <span style="color: var(--text-muted); font-size: 13px;" id="receber-count">0 registros</span>
+        </div>
+
+        <div class="table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Cliente</th><th>Telefone</th><th>Descrição</th>
+                <th>Valor Total</th><th>Parcelas</th><th>Entrada</th>
+                <th>Falta</th><th>Data Acerto</th><th>Status</th><th class="actions">Ações</th>
+              </tr>
+            </thead>
+            <tbody id="receber-table">
+              <tr><td colspan="10" class="empty">Carregando...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="receber-modal" class="modal">
+    <div class="modal-content" style="max-width: 850px; max-height: 90vh; overflow-y: auto;">
+      <div class="modal-header">
+        <h3 id="receber-modal-title">Novo Valor a Receber</h3>
+        <button class="close" onclick="closeReceberModal()">&times;</button>
+      </div>
+      <form id="receber-form" onsubmit="saveReceber(event)">
+        <input type="hidden" id="receber-id">
+        
+        <div style="background: var(--surface-2); padding: 16px; border-radius: var(--radius-sm); margin-bottom: 16px;">
+          <h4 style="color: var(--text-secondary); margin-bottom: 12px;">👤 Dados do Cliente</h4>
+          <div class="form-grid">
+            <div class="form-group span-2"><label>Nome do Cliente *</label><input type="text" id="receber-cliente" required placeholder="Digite o nome completo"></div>
+            <div class="form-group"><label>Telefone</label><input type="text" id="receber-telefone" placeholder="(00) 00000-0000"></div>
+            <div class="form-group"><label>E-mail</label><input type="email" id="receber-email" placeholder="email@exemplo.com"></div>
+            <div class="form-group"><label>CPF</label><input type="text" id="receber-cpf" placeholder="000.000.000-00"></div>
+            <div class="form-group span-2"><label>Endereço</label><input type="text" id="receber-endereco" placeholder="Rua, número, bairro, cidade"></div>
+          </div>
+        </div>
+
+        <div style="background: var(--surface-2); padding: 16px; border-radius: var(--radius-sm); margin-bottom: 16px;">
+          <h4 style="color: var(--text-secondary); margin-bottom: 12px;">🛒 Dados da Venda</h4>
+          <div class="form-grid">
+            <div class="form-group span-2"><label>Descrição do Produto/Serviço *</label><input type="text" id="receber-descricao" required placeholder="Ex: Conserto de iPhone 12"></div>
+            <div class="form-group"><label>Valor Total (R$) *</label><input type="number" step="0.01" id="receber-valor-total" required placeholder="0,00" oninput="calcularValores()"></div>
+            <div class="form-group"><label>Forma de Pagamento</label><select id="receber-forma-pagamento"><option value="Dinheiro">Dinheiro</option><option value="Cartão de Crédito">Cartão de Crédito</option><option value="Cartão de Débito">Cartão de Débito</option><option value="PIX">PIX</option><option value="Boleto">Boleto</option><option value="Transferência">Transferência</option><option value="Outro">Outro</option></select></div>
+            <div class="form-group"><label>Número de Parcelas</label><select id="receber-parcelas" onchange="calcularValores()"><option value="1">1x</option><option value="2">2x</option><option value="3">3x</option><option value="4">4x</option><option value="5">5x</option><option value="6" selected>6x</option><option value="7">7x</option><option value="8">8x</option><option value="9">9x</option><option value="10">10x</option><option value="11">11x</option><option value="12">12x</option></select></div>
+            <div class="form-group"><label>Valor de Entrada (R$)</label><input type="number" step="0.01" id="receber-entrada" value="0" placeholder="0,00" oninput="calcularValores()"></div>
+            <div class="form-group"><label>Valor das Parcelas (R$)</label><input type="text" id="receber-valor-parcela" readonly style="background: var(--bg); font-weight: bold; color: var(--success);"></div>
+            <div class="form-group"><label>Falta Receber (R$)</label><input type="text" id="receber-falta" readonly style="background: var(--bg); font-weight: bold; color: var(--warning);"></div>
+            <div class="form-group"><label>Data do Acerto *</label><input type="date" id="receber-data-acerto" required></div>
+            <div class="form-group"><label>Status</label><select id="receber-status"><option value="pendente">Pendente</option><option value="parcial">Parcial</option><option value="quitado">Quitado</option></select></div>
+            
+            <!-- NOVOS CAMPOS -->
+            <div class="form-group">
+              <label>Conta de Destino</label>
+              <select id="receber-conta">
+                <option value="">Selecione</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>OS Relacionada</label>
+              <select id="receber-os">
+                <option value="">Selecione</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div style="background: var(--surface-2); padding: 16px; border-radius: var(--radius-sm); margin-bottom: 16px;">
+          <h4 style="color: var(--text-secondary); margin-bottom: 12px;">📝 Observações</h4>
+          <div class="form-grid">
+            <div class="form-group span-2"><label>Observações sobre o Cliente</label><textarea id="receber-obs-cliente" rows="2" placeholder="Observações sobre o cliente..."></textarea></div>
+            <div class="form-group span-2"><label>Observações sobre a Venda</label><textarea id="receber-obs-venda" rows="2" placeholder="Observações sobre a venda..."></textarea></div>
+          </div>
+        </div>
+
+        <div style="background: var(--surface-3); border-radius: var(--radius-sm); padding: 16px; margin: 16px 0;">
+          <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; text-align: center;">
+            <div><small style="color: var(--text-muted);">💰 Valor Total</small><div style="font-weight: bold; font-size: 16px; color: var(--gold);" id="resumo-total-modal">R$ 0,00</div></div>
+            <div><small style="color: var(--text-muted);">📦 Entrada</small><div style="font-weight: bold; font-size: 16px; color: var(--gold);" id="resumo-entrada-modal">R$ 0,00</div></div>
+            <div><small style="color: var(--text-muted);">📋 Parcelas</small><div style="font-weight: bold; font-size: 16px; color: var(--success);" id="resumo-parcela-modal">R$ 0,00</div></div>
+            <div><small style="color: var(--text-muted);">⏳ Falta Receber</small><div style="font-weight: bold; font-size: 16px; color: var(--warning);" id="resumo-falta-modal">R$ 0,00</div></div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn" onclick="closeReceberModal()">Cancelar</button>
+          <button type="submit" class="btn btn-primary">💾 Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="../js/api.js"></script>
+  <script src="../js/app.js"></script>
+  <script src="../js/utils.js"></script>
+  <script>
+    let receberCache = [];
+
+    function showToast(mensagem, tipo = 'success') {
+      const toast = document.getElementById('toast');
+      if (!toast) return;
+      toast.textContent = mensagem;
+      toast.className = 'toast toast-' + tipo;
+      setTimeout(() => toast.classList.add('show'), 100);
+      setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+
+    function fazerLogout() {
+      if (confirm('Deseja realmente sair?')) {
+        localStorage.removeItem('sessao_suittech');
+        window.location.href = 'login.html';
+      }
+    }
+
+    function calcularValores() {
+      const total = parseFloat(document.getElementById('receber-valor-total').value) || 0;
+      const parcelas = parseInt(document.getElementById('receber-parcelas').value) || 1;
+      const entrada = parseFloat(document.getElementById('receber-entrada').value) || 0;
+      const valorRestante = total - entrada;
+      const valorParcela = valorRestante > 0 ? valorRestante / parcelas : 0;
+      const faltaReceber = valorRestante;
+
+      document.getElementById('receber-valor-parcela').value = valorParcela.toFixed(2);
+      document.getElementById('receber-falta').value = faltaReceber.toFixed(2);
+
+      document.getElementById('resumo-total-modal').textContent = `R$ ${total.toFixed(2).replace('.', ',')}`;
+      document.getElementById('resumo-entrada-modal').textContent = `R$ ${entrada.toFixed(2).replace('.', ',')}`;
+      document.getElementById('resumo-parcela-modal').textContent = `R$ ${valorParcela.toFixed(2).replace('.', ',')} (${parcelas}x)`;
+      document.getElementById('resumo-falta-modal').textContent = `R$ ${faltaReceber.toFixed(2).replace('.', ',')}`;
+
+      const statusSelect = document.getElementById('receber-status');
+      if (total > 0 && entrada >= total) statusSelect.value = 'quitado';
+      else if (entrada > 0 && entrada < total) statusSelect.value = 'parcial';
+      else if (entrada === 0) statusSelect.value = 'pendente';
+    }
+
+    async function loadReceber() {
+      try {
+        if (typeof window.api === 'undefined' || !window.api.buscar) {
+          receberCache = [];
+          renderReceber();
+          return;
+        }
+        const resultado = await window.api.buscar('valores_receber');
+        if (resultado.sucesso) {
+          receberCache = resultado.dados || [];
+          renderReceber();
+          atualizarResumoReceber();
+        } else {
+          receberCache = [];
+          renderReceber();
+        }
+      } catch (erro) {
+        console.error('Erro ao carregar:', erro);
+        receberCache = [];
+        renderReceber();
+      }
+    }
+
+    function renderReceber() {
+      const q = document.getElementById('search-receber')?.value.toLowerCase() || '';
+      const status = document.getElementById('filter-receber-status')?.value || '';
+      const tbody = document.getElementById('receber-table');
+      const countEl = document.getElementById('receber-count');
+      if (!tbody) return;
+
+      let filtered = receberCache;
+      if (q) filtered = filtered.filter(item => (item.cliente || '').toLowerCase().includes(q) || (item.descricao || '').toLowerCase().includes(q) || (item.telefone || '').includes(q));
+      if (status) filtered = filtered.filter(item => item.status === status);
+
+      if (countEl) countEl.textContent = `${filtered.length} registros`;
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="10" class="empty">Nenhum registro encontrado</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = filtered.map(item => `
+        <tr>
+          <td><strong>${item.cliente || '-'}</strong></td>
+          <td>${item.telefone || '-'}</td>
+          <td>${item.descricao || '-'}</td>
+          <td style="color: var(--gold); font-weight: bold;">R$ ${(item.valorTotal || 0).toFixed(2).replace('.', ',')}</td>
+          <td>${item.parcelas || 1}x</td>
+          <td>R$ ${(item.entrada || 0).toFixed(2).replace('.', ',')}</td>
+          <td style="color: ${(item.faltaReceber || 0) > 0 ? '#ef4444' : '#22c55e'}; font-weight: bold;">R$ ${(item.faltaReceber || 0).toFixed(2).replace('.', ',')}</td>
+          <td>${item.dataAcerto || '-'}</td>
+          <td><span class="status-badge status-${item.status || 'pendente'}">${item.status || 'Pendente'}</span></td>
+          <td class="actions">
+            <button class="btn btn-primary" onclick="editReceber('${item._id}')" style="padding:4px 12px;font-size:12px;" title="Editar">✏️</button>
+            ${item.status !== 'quitado' ? `<button class="btn btn-success" onclick="receberPagamento('${item._id}')" style="padding:4px 12px;font-size:12px;" title="Receber">💰</button>` : ''}
+            <button class="btn btn-danger" onclick="deleteReceber('${item._id}')" style="padding:4px 12px;font-size:12px;" title="Excluir">🗑️</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function atualizarResumoReceber() {
+      let total = 0, entrada = 0, parcelas = 0, falta = 0;
+      let quitados = 0, pendentes = 0;
+      receberCache.forEach(item => {
+        total += item.valorTotal || 0;
+        entrada += item.entrada || 0;
+        parcelas += (item.valorParcela || 0) * (item.parcelas || 0);
+        falta += item.faltaReceber || 0;
+        if (item.status === 'quitado') quitados++;
+        else pendentes++;
+      });
+      document.getElementById('resumo-total').textContent = `R$ ${total.toFixed(2).replace('.', ',')}`;
+      document.getElementById('resumo-entrada').textContent = `R$ ${entrada.toFixed(2).replace('.', ',')}`;
+      document.getElementById('resumo-parcelas').textContent = `R$ ${parcelas.toFixed(2).replace('.', ',')}`;
+      document.getElementById('resumo-falta').textContent = `R$ ${falta.toFixed(2).replace('.', ',')}`;
+      document.getElementById('resumo-quitados').textContent = quitados;
+      document.getElementById('resumo-pendentes').textContent = pendentes;
+    }
+
+    let recebendoPagamento = false;
+    async function receberPagamento(id) {
+      if (recebendoPagamento) return;
+      const item = receberCache.find(x => x._id === id);
+      if (!item) { showToast('❌ Registro não encontrado', 'error'); return; }
+      const valorParcela = Number(item.valorParcela) || 0;
+      const faltaAtual = Number(item.faltaReceber) || 0;
+      const valorRecebido = Math.min(valorParcela, faltaAtual);
+      if (faltaAtual <= 0) { showToast('❌ Este valor já está quitado!', 'warning'); return; }
+      if (valorRecebido <= 0) { showToast('❌ Parcela inválida para recebimento.', 'error'); return; }
+      if (!confirm(`💰 Receber pagamento de R$ ${valorRecebido.toFixed(2).replace('.', ',')}?\n\nCliente: ${item.cliente || 'N/A'}\nFalta receber: R$ ${faltaAtual.toFixed(2).replace('.', ',')}`)) return;
+
+      recebendoPagamento = true;
+      try {
+        const novaFalta = faltaAtual - valorRecebido;
+        const novoStatus = novaFalta <= 0 ? 'quitado' : 'parcial';
+        const pagamentoId = `rec_${id}_${Date.now()}`;
+        const body = { ...item, faltaReceber: Math.max(0, novaFalta), status: novoStatus, dataUltimoPagamento: dataLocalHojeISO(), ultimo_pagamento_id: pagamentoId };
+        const resultado = await window.api.atualizar('valores_receber', id, body);
+        if (resultado.sucesso) {
+          const resultadoEntrada = await window.api.salvar('caixa_entrada', { _id: pagamentoId, valor_receber_id: id, data: dataLocalHojeISO(), tipo: 'recebimento', descricao: `💰 RECEBIMENTO: ${item.cliente || 'Cliente'} - ${item.descricao || ''}`, venda: valorRecebido, custo: 0, lucro: valorRecebido, valor_liquido: valorRecebido, conta_id: item.conta_id || '', forma_pagamento: item.formaPagamento || item.forma_pagamento || '', status: 'confirmado' });
+          if (!resultadoEntrada.sucesso) {
+            await window.api.atualizar('valores_receber', id, item);
+            showToast('❌ O recebimento não foi concluído porque o lançamento no Caixa Entrada falhou.', 'error');
+            await loadReceber();
+            return;
+          }
+          showToast(`✅ Pagamento de R$ ${valorRecebido.toFixed(2).replace('.', ',')} recebido de ${item.cliente || 'cliente'}!`, 'success');
+          await loadReceber();
+        } else {
+          showToast('❌ Erro: ' + resultado.erro, 'error');
+        }
+      } catch (erro) {
+        console.error('Erro:', erro);
+        showToast('❌ Erro: ' + erro.message, 'error');
+      } finally {
+        recebendoPagamento = false;
+      }
+    }
+
+    function openReceberModal(item = null) {
+      document.getElementById('receber-modal-title').textContent = item ? '✏️ Editar Recebimento' : '➕ Novo Valor a Receber';
+      document.getElementById('receber-id').value = item ? item._id : '';
+      document.getElementById('receber-cliente').value = item ? item.cliente || '' : '';
+      document.getElementById('receber-telefone').value = item ? item.telefone || '' : '';
+      document.getElementById('receber-email').value = item ? item.email || '' : '';
+      document.getElementById('receber-cpf').value = item ? item.cpf || '' : '';
+      document.getElementById('receber-endereco').value = item ? item.endereco || '' : '';
+      document.getElementById('receber-descricao').value = item ? item.descricao || '' : '';
+      document.getElementById('receber-valor-total').value = item ? item.valorTotal || '' : '';
+      document.getElementById('receber-parcelas').value = item ? item.parcelas || 6 : 6;
+      document.getElementById('receber-entrada').value = item ? item.entrada || 0 : 0;
+      document.getElementById('receber-forma-pagamento').value = item ? item.formaPagamento || 'Dinheiro' : 'Dinheiro';
+      document.getElementById('receber-data-acerto').value = item ? item.dataAcerto : dataLocalHojeISO();
+      document.getElementById('receber-status').value = item ? item.status || 'pendente' : 'pendente';
+      document.getElementById('receber-obs-cliente').value = item ? item.obsCliente || '' : '';
+      document.getElementById('receber-obs-venda').value = item ? item.obsVenda || '' : '';
+      
+      window.carregarContasSelect('receber-conta', item ? item.conta_id : '');
+      // Carregar OS (vendas)
+      carregarOSSelect(item ? item.os_id : '');
+      
+      calcularValores();
+      document.getElementById('receber-modal').classList.add('open');
+    }
+
+    async function carregarOSSelect(selectedValue = '') {
+      const select = document.getElementById('receber-os');
+      if (!select) return;
+      const result = await window.api.buscar('vendas');
+      const vendas = result.sucesso ? result.dados : [];
+      select.innerHTML = '<option value="">Selecione uma OS</option>';
+      vendas.forEach(v => {
+        const opt = document.createElement('option');
+        opt.value = v._id;
+        opt.textContent = `${v.os || v._id.slice(-4)} - ${v.cliente || 'Sem cliente'} - R$ ${(v.valor || 0).toFixed(2)}`;
+        if (opt.value === selectedValue) opt.selected = true;
+        select.appendChild(opt);
+      });
+    }
+
+    function closeReceberModal() {
+      document.getElementById('receber-modal').classList.remove('open');
+    }
+
+    async function saveReceber(e) {
+      e.preventDefault();
+      const id = document.getElementById('receber-id').value;
+      const valorTotal = parseFloat(document.getElementById('receber-valor-total').value) || 0;
+      const parcelas = parseInt(document.getElementById('receber-parcelas').value) || 1;
+      const entrada = parseFloat(document.getElementById('receber-entrada').value) || 0;
+      const valorRestante = valorTotal - entrada;
+      const valorParcela = valorRestante > 0 ? valorRestante / parcelas : 0;
+
+      const body = {
+        data: dataLocalHojeISO(),
+        cliente: document.getElementById('receber-cliente').value.trim(),
+        telefone: document.getElementById('receber-telefone').value.trim(),
+        email: document.getElementById('receber-email').value.trim(),
+        cpf: document.getElementById('receber-cpf').value.trim(),
+        endereco: document.getElementById('receber-endereco').value.trim(),
+        descricao: document.getElementById('receber-descricao').value.trim(),
+        valorTotal: valorTotal,
+        parcelas: parcelas,
+        entrada: entrada,
+        valorParcela: valorParcela,
+        faltaReceber: valorRestante,
+        formaPagamento: document.getElementById('receber-forma-pagamento').value,
+        dataAcerto: document.getElementById('receber-data-acerto').value,
+        status: document.getElementById('receber-status').value,
+        obsCliente: document.getElementById('receber-obs-cliente').value.trim(),
+        obsVenda: document.getElementById('receber-obs-venda').value.trim(),
+        conta_id: document.getElementById('receber-conta').value,
+        os_id: document.getElementById('receber-os').value
+      };
+
+      if (!body.cliente || !body.descricao || body.valorTotal <= 0) {
+        showToast('❌ Cliente, Descrição e Valor Total são obrigatórios!', 'error');
+        return;
+      }
+
+      try {
+        if (typeof window.api === 'undefined' || !window.api.salvar) {
+          showToast('❌ Banco de dados não disponível', 'error');
+          return;
+        }
+        let resultado;
+        if (id) {
+          resultado = await window.api.atualizar('valores_receber', id, body);
+        } else {
+          resultado = await window.api.salvar('valores_receber', body);
+        }
+        if (resultado.sucesso) {
+          if (!id && entrada > 0) {
+            const recebivelId = resultado.dados?._id || '';
+            await window.api.salvar('caixa_entrada', {
+              valor_receber_id: recebivelId,
+              data: dataLocalHojeISO(),
+              tipo: 'recebimento',
+              descricao: `💰 ENTRADA: ${body.cliente} - ${body.descricao}`,
+              venda: entrada,
+              custo: 0,
+              lucro: entrada,
+              valor_liquido: entrada,
+              conta_id: body.conta_id || '',
+              forma_pagamento: body.formaPagamento || '',
+              status: 'confirmado'
+            });
+          }
+          closeReceberModal();
+          showToast('✅ Registro salvo com sucesso!', 'success');
+          await loadReceber();
+        } else {
+          showToast('❌ Erro: ' + resultado.erro, 'error');
+        }
+      } catch (erro) {
+        console.error('Erro:', erro);
+        showToast('❌ Erro: ' + erro.message, 'error');
+      }
+    }
+
+    async function editReceber(id) {
+      try {
+        const item = receberCache.find(x => x._id === id);
+        if (item) { openReceberModal(item); } else { showToast('❌ Registro não encontrado', 'error'); }
+      } catch (erro) {
+        console.error('Erro:', erro);
+        showToast('❌ Erro ao buscar registro', 'error');
+      }
+    }
+
+    async function deleteReceber(id) {
+      if (!confirm('Excluir este registro?')) return;
+      try {
+        if (typeof window.api === 'undefined' || !window.api.deletar) {
+          showToast('❌ Banco de dados não disponível', 'error');
+          return;
+        }
+        const resultado = await window.api.deletar('valores_receber', id);
+        if (resultado.sucesso) {
+          showToast('✅ Registro excluído!', 'success');
+          await loadReceber();
+        } else {
+          showToast('❌ Erro: ' + resultado.erro, 'error');
+        }
+      } catch (erro) {
+        console.error('Erro:', erro);
+        showToast('❌ Erro: ' + erro.message, 'error');
+      }
+    }
+
+    document.addEventListener('click', function(e) {
+      if (e.target.classList.contains('modal')) e.target.classList.remove('open');
+    });
+
+    document.addEventListener('DOMContentLoaded', loadReceber);
+
+    window.loadReceber = loadReceber;
+    window.renderReceber = renderReceber;
+    window.openReceberModal = openReceberModal;
+    window.closeReceberModal = closeReceberModal;
+    window.saveReceber = saveReceber;
+    window.editReceber = editReceber;
+    window.deleteReceber = deleteReceber;
+    window.receberPagamento = receberPagamento;
+    window.calcularValores = calcularValores;
+    window.showToast = showToast;
+    window.fazerLogout = fazerLogout;
+  </script>
+
+  <script src="../js/carregarMenu.js"></script>
+
+  <script src="../js/glitter.js"></script>
+</body>
+</html>

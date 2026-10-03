@@ -1,0 +1,274 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diagnóstico de Rede - SUIT-TECH</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #0a0e14; color: #e8edf5; padding: 30px; max-width: 800px; margin: 0 auto; }
+        h1 { color: #3b82f6; border-bottom: 2px solid #2a3344; padding-bottom: 10px; }
+        .card { background: #141a24; border: 1px solid #2a3344; border-radius: 8px; padding: 20px; margin-bottom: 16px; }
+        .card h3 { margin-top: 0; color: #8899bb; }
+        .status { padding: 10px 14px; border-radius: 6px; margin-top: 8px; }
+        .status.success { background: rgba(34,197,94,0.15); border: 1px solid #22c55e; color: #22c55e; }
+        .status.error { background: rgba(239,68,68,0.15); border: 1px solid #ef4444; color: #ef4444; }
+        .status.info { background: rgba(59,130,246,0.15); border: 1px solid #3b82f6; color: #3b82f6; }
+        .btn { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; margin-right: 8px; }
+        .btn-primary { background: #3b82f6; color: #fff; }
+        .btn-success { background: #22c55e; color: #fff; }
+        .btn-danger { background: #ef4444; color: #fff; }
+        .btn:hover { opacity: 0.8; transform: translateY(-1px); }
+        input { background: #1c2533; border: 1px solid #2a3344; color: #e8edf5; padding: 10px; border-radius: 6px; width: 100%; box-sizing: border-box; margin: 8px 0; font-family: monospace; }
+        .mono { font-family: monospace; background: #1c2533; padding: 4px 8px; border-radius: 4px; color: #fbbf24; }
+        table { width: 100%; border-collapse: collapse; }
+        td, th { padding: 8px; border-bottom: 1px solid #2a3344; text-align: left; }
+        th { color: #8899bb; }
+        .log { max-height: 300px; overflow-y: auto; background: #0a0e14; padding: 10px; border-radius: 6px; font-family: monospace; font-size: 13px; }
+        .log .entry { padding: 2px 0; border-bottom: 1px solid #1c2533; }
+        .log .time { color: #556688; margin-right: 8px; }
+    </style>
+  <link rel="stylesheet" href="../css/tema-novo-overrides.css">
+  <link rel="stylesheet" href="../css/theme.css">
+  <script src="../js/theme.js"></script>
+</head>
+<body>
+    <h1>🔧 Diagnóstico de Rede</h1>
+
+    <div class="card">
+        <h3>📊 Configuração Atual</h3>
+        <div id="config-status" class="status info">Carregando...</div>
+        <p><strong>Modo:</strong> <span id="modo-atual">-</span></p>
+        <p><strong>Caminho:</strong> <span id="caminho-atual" class="mono">-</span></p>
+        <button class="btn btn-primary" onclick="recarregarConfig()">🔄 Recarregar Config</button>
+    </div>
+
+    <div class="card">
+        <h3>📝 Teste de Escrita</h3>
+        <p>Caminho que será usado:</p>
+        <input type="text" id="caminho-teste" placeholder="Digite o caminho da pasta compartilhada" style="font-family: monospace;">
+        <p style="font-size:13px; color:#556688;">Ex: \\\\SEU-PC\\SUIT-TECH_DADOS</p>
+        <button class="btn btn-success" onclick="testarEscrita()">📤 Testar Escrita</button>
+        <button class="btn btn-primary" onclick="testarLeitura()">📥 Testar Leitura</button>
+        <div id="teste-resultado" class="status" style="margin-top: 12px; display: none;"></div>
+    </div>
+
+    <div class="card">
+        <h3>📋 Log de Operações</h3>
+        <div id="log-container" class="log">
+            <div class="entry">🔹 Aguardando ações...</div>
+        </div>
+        <button class="btn btn-danger" onclick="limparLog()">🗑️ Limpar Log</button>
+    </div>
+
+    <div class="card">
+        <h3>📂 Arquivos na Pasta Compartilhada</h3>
+        <button class="btn btn-primary" onclick="listarArquivos()">📋 Listar Arquivos</button>
+        <div id="lista-arquivos" style="margin-top: 12px;"></div>
+    </div>
+
+    <div class="card">
+        <h3>💾 Salvar Configuração Manual</h3>
+        <button class="btn btn-success" onclick="salvarConfigManual()">💾 Salvar Config</button>
+        <button class="btn btn-danger" onclick="usarModoLocal()">📁 Voltar para Local</button>
+        <div id="config-manual-resultado" style="margin-top: 12px;"></div>
+    </div>
+
+    <script>
+        // ============================================
+        // LOG
+        // ============================================
+        function addLog(mensagem, tipo = 'info') {
+            const container = document.getElementById('log-container');
+            const time = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.className = 'entry';
+            entry.innerHTML = `<span class="time">[${time}]</span> ${mensagem}`;
+            if (tipo === 'error') entry.style.color = '#ef4444';
+            else if (tipo === 'success') entry.style.color = '#22c55e';
+            else entry.style.color = '#8899bb';
+            container.prepend(entry);
+            if (container.children.length > 50) container.removeChild(container.lastChild);
+        }
+
+        function limparLog() {
+            const container = document.getElementById('log-container');
+            container.innerHTML = '<div class="entry">🗑️ Log limpo</div>';
+        }
+
+        function mostrarResultado(id, texto, tipo = 'info') {
+            const el = document.getElementById(id);
+            el.style.display = 'block';
+            el.className = 'status ' + tipo;
+            el.textContent = texto;
+            addLog(texto, tipo);
+        }
+
+        // ============================================
+        // CARREGAR CONFIGURAÇÃO
+        // ============================================
+        async function recarregarConfig() {
+            try {
+                addLog('🔄 Recarregando configuração...');
+                const resultado = await window.api.configLer();
+                if (resultado.sucesso) {
+                    const config = resultado.dados;
+                    document.getElementById('modo-atual').textContent = config.modo || 'local';
+                    document.getElementById('caminho-atual').textContent = config.caminhoRede || '(vazio)';
+                    document.getElementById('caminho-teste').value = config.caminhoRede || '';
+                    mostrarResultado('config-status', `✅ Modo: ${config.modo} | Caminho: ${config.caminhoRede || 'N/A'}`, 'success');
+                    addLog(`✅ Config carregada: modo=${config.modo}, caminho=${config.caminhoRede}`, 'success');
+                } else {
+                    mostrarResultado('config-status', `❌ Erro: ${resultado.erro}`, 'error');
+                    addLog(`❌ Erro ao carregar config: ${resultado.erro}`, 'error');
+                }
+            } catch (e) {
+                mostrarResultado('config-status', `❌ Erro: ${e.message}`, 'error');
+                addLog(`❌ Exceção: ${e.message}`, 'error');
+            }
+        }
+
+        // ============================================
+        // TESTAR ESCRITA
+        // ============================================
+        async function testarEscrita() {
+            const caminho = document.getElementById('caminho-teste').value.trim();
+            if (!caminho) {
+                mostrarResultado('teste-resultado', '❌ Digite um caminho válido!', 'error');
+                return;
+            }
+
+            const nomeArquivo = 'teste_' + Date.now() + '.txt';
+            const conteudo = 'Teste de escrita em ' + new Date().toISOString();
+
+            try {
+                addLog(`📤 Tentando escrever em ${caminho}\\${nomeArquivo}...`);
+                const resultado = await window.electron.salvarArquivo(caminho, nomeArquivo, conteudo);
+
+                if (resultado.sucesso) {
+                    mostrarResultado('teste-resultado', `✅ Arquivo criado com sucesso: ${nomeArquivo}`, 'success');
+                    addLog(`✅ Arquivo criado: ${nomeArquivo}`, 'success');
+                    // Tenta listar arquivos
+                    listarArquivos();
+                } else {
+                    mostrarResultado('teste-resultado', `❌ Erro: ${resultado.erro}`, 'error');
+                    addLog(`❌ Erro ao escrever: ${resultado.erro}`, 'error');
+                }
+            } catch (e) {
+                mostrarResultado('teste-resultado', `❌ Exceção: ${e.message}`, 'error');
+                addLog(`❌ Exceção: ${e.message}`, 'error');
+            }
+        }
+
+        // ============================================
+        // TESTAR LEITURA
+        // ============================================
+        async function testarLeitura() {
+            const caminho = document.getElementById('caminho-teste').value.trim();
+            if (!caminho) {
+                mostrarResultado('teste-resultado', '❌ Digite um caminho válido!', 'error');
+                return;
+            }
+
+            // Tenta listar arquivos primeiro
+            try {
+                // Como não temos um handler para listar diretório, vamos tentar ler um arquivo específico
+                // Vamos listar via shell? Melhor: usar o explorador de arquivos? Não, vamos usar o abrir pasta.
+                // Vamos tentar abrir a pasta diretamente.
+                const resultado = await window.electron.abrirPasta(caminho);
+                if (resultado.sucesso) {
+                    mostrarResultado('teste-resultado', `📂 Pasta aberta no explorador: ${caminho}`, 'success');
+                    addLog(`📂 Pasta aberta: ${caminho}`, 'success');
+                } else {
+                    mostrarResultado('teste-resultado', `❌ Não foi possível abrir a pasta: ${resultado.erro}`, 'error');
+                    addLog(`❌ Erro ao abrir pasta: ${resultado.erro}`, 'error');
+                }
+            } catch (e) {
+                mostrarResultado('teste-resultado', `❌ Exceção: ${e.message}`, 'error');
+                addLog(`❌ Exceção: ${e.message}`, 'error');
+            }
+        }
+
+        // ============================================
+        // LISTAR ARQUIVOS (usando shell ou fetch)
+        // ============================================
+        async function listarArquivos() {
+            const caminho = document.getElementById('caminho-teste').value.trim();
+            if (!caminho) {
+                document.getElementById('lista-arquivos').innerHTML = '<span style="color:#ef4444;">Digite um caminho primeiro!</span>';
+                return;
+            }
+
+            try {
+                // Como o Electron não expõe um handler para listar diretórios, vamos abrir a pasta
+                const resultado = await window.electron.abrirPasta(caminho);
+                if (resultado.sucesso) {
+                    document.getElementById('lista-arquivos').innerHTML = `
+                        <div style="color:#22c55e;">✅ Pasta aberta no explorador!</div>
+                        <div style="color:#8899bb; font-size:13px; margin-top:4px;">Verifique os arquivos manualmente.</div>
+                    `;
+                    addLog(`📂 Pasta aberta: ${caminho}`, 'success');
+                } else {
+                    document.getElementById('lista-arquivos').innerHTML = `<span style="color:#ef4444;">❌ ${resultado.erro}</span>`;
+                    addLog(`❌ Erro ao abrir pasta: ${resultado.erro}`, 'error');
+                }
+            } catch (e) {
+                document.getElementById('lista-arquivos').innerHTML = `<span style="color:#ef4444;">❌ ${e.message}</span>`;
+                addLog(`❌ Exceção: ${e.message}`, 'error');
+            }
+        }
+
+        // ============================================
+        // SALVAR CONFIGURAÇÃO MANUAL
+        // ============================================
+        async function salvarConfigManual() {
+            const caminho = document.getElementById('caminho-teste').value.trim();
+            if (!caminho) {
+                document.getElementById('config-manual-resultado').innerHTML = '<span style="color:#ef4444;">❌ Digite o caminho!</span>';
+                return;
+            }
+            const config = { modo: 'rede', caminhoRede: caminho };
+            try {
+                const resultado = await window.api.configSalvar(config);
+                if (resultado.sucesso) {
+                    document.getElementById('config-manual-resultado').innerHTML = `<span style="color:#22c55e;">✅ Configuração salva! Reinicie o programa.</span>`;
+                    addLog(`✅ Config salva: rede -> ${caminho}`, 'success');
+                    // Atualiza a exibição
+                    recarregarConfig();
+                } else {
+                    document.getElementById('config-manual-resultado').innerHTML = `<span style="color:#ef4444;">❌ Erro: ${resultado.erro}</span>`;
+                    addLog(`❌ Erro ao salvar config: ${resultado.erro}`, 'error');
+                }
+            } catch (e) {
+                document.getElementById('config-manual-resultado').innerHTML = `<span style="color:#ef4444;">❌ ${e.message}</span>`;
+                addLog(`❌ Exceção: ${e.message}`, 'error');
+            }
+        }
+
+        // ============================================
+        // USAR MODO LOCAL
+        // ============================================
+        async function usarModoLocal() {
+            const config = { modo: 'local', caminhoRede: '' };
+            try {
+                const resultado = await window.api.configSalvar(config);
+                if (resultado.sucesso) {
+                    document.getElementById('config-manual-resultado').innerHTML = `<span style="color:#f59e0b;">📁 Modo local ativado. Reinicie o programa.</span>`;
+                    addLog(`📁 Modo local ativado`, 'success');
+                    recarregarConfig();
+                } else {
+                    document.getElementById('config-manual-resultado').innerHTML = `<span style="color:#ef4444;">❌ ${resultado.erro}</span>`;
+                }
+            } catch (e) {
+                document.getElementById('config-manual-resultado').innerHTML = `<span style="color:#ef4444;">❌ ${e.message}</span>`;
+            }
+        }
+
+        // ============================================
+        // INICIALIZAÇÃO
+        // ============================================
+        recarregarConfig();
+    </script>
+
+  <script src="../js/glitter.js"></script>
+</body>
+</html>

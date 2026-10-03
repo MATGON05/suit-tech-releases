@@ -1,0 +1,161 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SUIT-TECH - Unificado</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f0f2f5;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .header {
+      background: #1a1a2e;
+      color: #fff;
+      padding: 12px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+      flex-shrink: 0;
+    }
+    .header h1 {
+      font-size: 20px;
+      font-weight: 600;
+    }
+    .header h1 span {
+      color: #3b82f6;
+    }
+    .header .logout-btn {
+      background: none;
+      border: 1px solid #ef4444;
+      color: #ef4444;
+      padding: 6px 18px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: 0.2s;
+    }
+    .header .logout-btn:hover {
+      background: #ef4444;
+      color: #fff;
+    }
+    .tabs {
+      display: flex;
+      background: #fff;
+      border-bottom: 2px solid #e5e7eb;
+      flex-shrink: 0;
+      padding: 0 24px;
+    }
+    .tab {
+      padding: 14px 28px;
+      font-size: 16px;
+      font-weight: 500;
+      color: #6b7280;
+      cursor: pointer;
+      border-bottom: 3px solid transparent;
+      transition: 0.2s;
+      user-select: none;
+    }
+    .tab:hover {
+      color: #1a1a2e;
+      background: #f9fafb;
+    }
+    .tab.active {
+      color: #1a1a2e;
+      border-bottom-color: #3b82f6;
+    }
+    .iframe-container {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+    }
+    .iframe-container iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      display: block;
+      background: #fff;
+    }
+    .iframe-container .tab-content {
+      display: none;
+      width: 100%;
+      height: 100%;
+    }
+    .iframe-container .tab-content.active {
+      display: block;
+    }
+  </style>
+  <link rel="stylesheet" href="../css/theme.css">
+  <script src="../js/theme.js"></script>
+</head>
+<body>
+  <div class="header">
+    <h1>SUIT-TECH <span>Unificado</span></h1>
+    <button class="logout-btn" onclick="fazerLogout()">🚪 Sair</button>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" data-tab="clientes" onclick="switchTab('clientes')">👥 Clientes</div>
+    <div class="tab" data-tab="agendamentos" onclick="switchTab('agendamentos')">📅 Agendamentos</div>
+  </div>
+
+  <div class="iframe-container">
+    <div id="tab-clientes" class="tab-content active">
+      <iframe src="clientes.html" sandbox="allow-same-origin allow-scripts allow-forms allow-popups"></iframe>
+    </div>
+    <div id="tab-agendamentos" class="tab-content">
+      <iframe src="agendamentos.html" sandbox="allow-same-origin allow-scripts allow-forms allow-popups"></iframe>
+    </div>
+  </div>
+
+  <script>
+    // Verificação de sessão (igual aos arquivos originais)
+    (function() {
+      const sessao = localStorage.getItem('sessao_suittech');
+      if (!sessao) { window.location.href = 'login.html'; return; }
+      try {
+        const dados = JSON.parse(sessao);
+        if (!dados.logado) { window.location.href = 'login.html'; return; }
+      } catch (e) { window.location.href = 'login.html'; }
+    })();
+
+    function fazerLogout() {
+      if (confirm('Deseja realmente sair?')) {
+        localStorage.removeItem('sessao_suittech');
+        window.location.href = 'login.html';
+      }
+    }
+
+    function switchTab(tab) {
+      // Atualiza abas
+      document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+      document.querySelector(`.tab[data-tab="${tab}"]`).classList.add('active');
+
+      // Atualiza conteúdos
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.getElementById(`tab-${tab}`).classList.add('active');
+    }
+
+    // Ajusta altura do iframe para preencher o restante da tela
+    function ajustarIframes() {
+      const container = document.querySelector('.iframe-container');
+      const altura = window.innerHeight - document.querySelector('.header').offsetHeight - document.querySelector('.tabs').offsetHeight;
+      container.style.height = altura + 'px';
+    }
+
+    window.addEventListener('resize', ajustarIframes);
+    window.addEventListener('load', ajustarIframes);
+  </script>
+
+  <script src="../js/glitter.js"></script>
+</body>
+</html>

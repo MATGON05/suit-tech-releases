@@ -1,0 +1,19 @@
+node_modules/
+dist/
+release/
+*.log
+.env
+.env.*
+!*.example
+.DS_Store
+Thumbs.db
+
+# Dados locais de clientes e financeiro — não publicar no GitHub
+src/data/json/*.json
+src/data/json/*.bak
+src/data/json/*.json.bak
+*.db
+*.sqlite
+*.sqlite3
+backup/
+backups/
