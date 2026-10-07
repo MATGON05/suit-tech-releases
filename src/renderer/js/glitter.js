@@ -7,7 +7,7 @@
 
     // Configurações (cores combinam com o tema laranja)
     const CONFIG = {
-        particleCount: 400,          // Número de estrelas
+        particleCount: 80,           // Mantém o efeito visual leve para o renderer
         color1: '#F97316',           // Laranja (primary)
         color2: '#FFD700',           // Dourado
         color3: '#FFFFFF',           // Branco
@@ -99,7 +99,7 @@
         // Usa a viewport inteira
         const newW = window.innerWidth;
         const newH = window.innerHeight;
-        const newDpr = Math.min(window.devicePixelRatio || 1, 2);
+        const newDpr = Math.min(window.devicePixelRatio || 1, 1.25);
 
         if (w === newW && h === newH && dpr === newDpr) return;
 
@@ -271,10 +271,20 @@
         elapsed += Math.min(0.1, Math.max(0, deltaSec));
     }
 
+    const FRAME_INTERVAL_MS = 1000 / 30;
+    let lastFrameAt = 0;
     function loop(t) {
-        const deltaSec = (t - lastT) / 1000;
-        lastT = t;
-        drawFrame(deltaSec);
+        const ativo = document.activeElement;
+        const editando = ativo && (ativo.tagName === 'INPUT' || ativo.tagName === 'TEXTAREA' || ativo.isContentEditable);
+        if (!document.hidden && !editando && (t - lastFrameAt >= FRAME_INTERVAL_MS || !lastFrameAt)) {
+            const deltaSec = (t - lastT) / 1000;
+            lastT = t;
+            lastFrameAt = t;
+            drawFrame(deltaSec);
+        } else if (document.hidden || editando) {
+            // Pausa efeitos durante a edição e evita um salto ao retomar a animação.
+            lastT = t;
+        }
         animId = requestAnimationFrame(loop);
     }
 

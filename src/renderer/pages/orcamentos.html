@@ -1560,11 +1560,13 @@
     // FECHAR MODAL (CLICK FORA)
     // ============================================
     document.addEventListener('click', function(e) {
-      if (e.target.classList.contains('modal')) e.target.classList.remove('open');
+      if (e.target.classList.contains('modal') && e.target.id !== 'budget-modal-unificado') e.target.classList.remove('open');
     });
     document.addEventListener('keydown', function(e) {
       if (e.key === 'Escape') {
-        document.querySelectorAll('.modal.open').forEach(el => el.classList.remove('open'));
+        document.querySelectorAll('.modal.open').forEach(el => {
+          if (el.id !== 'budget-modal-unificado') el.classList.remove('open');
+        });
         document.querySelectorAll('.fotos-dropdown-menu').forEach(el => el.classList.remove('open'));
         fecharCamera();
         fecharGaleria();
