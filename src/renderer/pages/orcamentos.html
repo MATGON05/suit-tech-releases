@@ -100,6 +100,32 @@
       background: var(--surface-2);
       color: var(--text);
     }
+    .orcamento-peca-linha {
+      display: grid;
+      grid-template-columns: minmax(190px, 1fr) 76px 112px 112px 36px;
+      gap: 8px;
+      align-items: end;
+      margin: 8px 0;
+      padding: 10px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+    }
+    .orcamento-peca-campo { min-width: 0; }
+    .orcamento-peca-campo label {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--text-secondary);
+      font-size: 11px;
+    }
+    .orcamento-peca-campo select,
+    .orcamento-peca-campo input { width: 100%; min-width: 0; }
+    .orcamento-peca-produto-nome { margin-top: 5px; }
+    @media (max-width: 700px) {
+      .orcamento-peca-linha { grid-template-columns: minmax(0, 1fr) minmax(64px, 0.4fr) minmax(90px, 0.6fr); }
+      .orcamento-peca-descricao { grid-column: 1 / -1; }
+      .orcamento-peca-remover { grid-column: 3; justify-self: end; }
+    }
   </style>
   <link rel="stylesheet" href="../css/theme.css">
   <script src="../js/theme.js"></script>
@@ -299,7 +325,12 @@
             </div>
             <div class="form-group">
               <label>Custo das Peças (R$)</label>
-              <input type="number" step="0.01" id="budget-parts-cost-unificado" readonly oninput="calcularLucroUnificado()">
+              <input type="number" step="0.01" min="0" id="budget-parts-cost-unificado" readonly oninput="calcularLucroUnificado()">
+              <label style="display:flex;align-items:center;gap:6px;margin-top:6px;font-size:12px;font-weight:normal;">
+                <input type="checkbox" id="budget-parts-cost-manual-unificado" onchange="alternarCustoPecasManual()" style="width:auto;margin:0;">
+                Digitar custo total manualmente (peças compradas direto do fornecedor)
+              </label>
+              <small style="display:block;color:var(--text-muted);margin-top:4px;">Ative para informar o custo total sem cadastrar a peça no estoque.</small>
             </div>
             <div class="form-group">
               <label>Total Cobrado (R$)</label>
@@ -323,6 +354,7 @@
             </div>
             <div class="form-group span-2">
               <label>📦 Peças utilizadas <small style="color:var(--text-muted);">(baixa ao concluir)</small></label>
+              <small style="display:block;color:var(--text-muted);margin-bottom:8px;">Selecione uma peça do estoque ou informe uma peça avulsa. O custo unitário pode ser preenchido ou ajustado aqui.</small>
               <div id="orcamento-pecas-lista"></div>
               <button type="button" class="btn btn-sm btn-purple" onclick="adicionarPecaOrcamento()">➕ Adicionar peça</button>
             </div>
@@ -1076,15 +1108,75 @@
     async function adicionarPecaOrcamento(peca = null) {
       const lista = document.getElementById('orcamento-pecas-lista');
       if (!lista) return;
-      const resultado = await window.api?.produtosBuscar?.();
-      const produtos = resultado?.dados || [];
-      if (!produtos.length) { showToast('⚠️ Cadastre produtos no estoque antes de vincular peças.', 'warning'); return; }
       const linha = document.createElement('div');
       linha.className = 'orcamento-peca-linha';
-      linha.style.cssText = 'display:flex;gap:8px;align-items:center;margin:6px 0;';
-      linha.innerHTML = `<select class="orcamento-peca-produto" style="flex:1;"><option value="">Selecione a peça...</option>${produtos.map(p => `<option value="${p._id}" data-venda="${p.preco_venda || 0}" data-custo="${p.preco_custo || 0}" ${peca?.produto_id === p._id ? 'selected' : ''}>${p.nome} (estoque: ${p.quantidade || 0})</option>`).join('')}</select><input class="orcamento-peca-qtd" type="number" min="1" value="${peca?.quantidade || 1}" style="width:65px;" title="Quantidade" oninput="calcularLucroUnificado()"><input class="orcamento-peca-venda" type="number" step="0.01" min="0" value="${peca?.preco_venda || 0}" style="width:85px;" title="Preço cobrado por unidade" oninput="calcularLucroUnificado()"><input class="orcamento-peca-custo" type="number" step="0.01" min="0" value="${peca?.preco_custo || 0}" style="width:85px;" title="Custo por unidade" oninput="calcularLucroUnificado()"><button type="button" class="btn btn-danger btn-sm" onclick="this.parentElement.remove();calcularLucroUnificado()">🗑️</button>`;
-      const select = linha.querySelector('.orcamento-peca-produto');
-      select.addEventListener('change', () => { const o=select.selectedOptions[0]; linha.querySelector('.orcamento-peca-venda').value=o?.dataset.venda||0; linha.querySelector('.orcamento-peca-custo').value=o?.dataset.custo||0; calcularLucroUnificado(); });
+      const grupoDescricao = document.createElement('div');
+      grupoDescricao.className = 'orcamento-peca-campo orcamento-peca-descricao';
+      grupoDescricao.innerHTML = '<label>Peça (produto do estoque opcional)</label>';
+      const select = document.createElement('select');
+      select.className = 'orcamento-peca-produto';
+      const opcaoVazia = document.createElement('option');
+      opcaoVazia.value = '';
+      opcaoVazia.textContent = 'Peça avulsa / sem baixa de estoque';
+      select.appendChild(opcaoVazia);
+      let produtos = [];
+      try {
+        const resultado = await window.api?.produtosBuscar?.();
+        produtos = resultado?.sucesso === false ? [] : (resultado?.dados || []);
+      } catch (erro) {
+        console.warn('Não foi possível carregar o estoque; a peça poderá ser lançada manualmente.', erro);
+      }
+      produtos.forEach(produto => {
+        const opcao = document.createElement('option');
+        opcao.value = produto._id;
+        opcao.dataset.venda = produto.preco_venda || 0;
+        opcao.dataset.custo = produto.preco_custo || 0;
+        opcao.textContent = `${produto.nome} (estoque: ${produto.quantidade || 0})`;
+        select.appendChild(opcao);
+      });
+      if (peca?.produto_id && produtos.some(produto => produto._id === peca.produto_id)) {
+        select.value = peca.produto_id;
+      }
+      const nome = document.createElement('input');
+      nome.type = 'text';
+      nome.className = 'orcamento-peca-nome orcamento-peca-produto-nome';
+      nome.placeholder = 'Nome/descrição da peça avulsa';
+      nome.value = peca?.nome || '';
+      grupoDescricao.append(select, nome);
+
+      const criarCampo = (rotulo, classe, tipo, valor, atributos = {}) => {
+        const grupo = document.createElement('div');
+        grupo.className = 'orcamento-peca-campo';
+        const label = document.createElement('label');
+        label.textContent = rotulo;
+        const input = document.createElement('input');
+        input.type = tipo;
+        input.className = classe;
+        input.value = valor;
+        Object.entries(atributos).forEach(([chave, atributo]) => input.setAttribute(chave, atributo));
+        input.addEventListener('input', calcularLucroUnificado);
+        grupo.append(label, input);
+        return grupo;
+      };
+      const quantidade = criarCampo('Quantidade', 'orcamento-peca-qtd', 'number', peca?.quantidade || 1, { min: '1', step: '1' });
+      const venda = criarCampo('Venda unitária (R$)', 'orcamento-peca-venda', 'number', peca?.preco_venda ?? 0, { min: '0', step: '0.01' });
+      const custo = criarCampo('Custo unitário (R$)', 'orcamento-peca-custo', 'number', peca?.preco_custo ?? 0, { min: '0', step: '0.01' });
+      const remover = document.createElement('button');
+      remover.type = 'button';
+      remover.className = 'btn btn-danger btn-sm orcamento-peca-remover';
+      remover.textContent = '🗑️';
+      remover.title = 'Remover peça';
+      remover.addEventListener('click', () => { linha.remove(); calcularLucroUnificado(); });
+      select.addEventListener('change', () => {
+        const opcao = select.selectedOptions[0];
+        if (select.value) {
+          nome.value = opcao.textContent.replace(/ \(estoque:.*$/, '');
+          venda.querySelector('input').value = opcao.dataset.venda || 0;
+          custo.querySelector('input').value = opcao.dataset.custo || 0;
+        }
+        calcularLucroUnificado();
+      });
+      linha.append(grupoDescricao, quantidade, venda, custo, remover);
       lista.appendChild(linha);
       calcularLucroUnificado();
     }
@@ -1092,11 +1184,11 @@
     function obterPecasOrcamento() {
       return [...document.querySelectorAll('#orcamento-pecas-lista .orcamento-peca-linha')].map(linha => ({
         produto_id: linha.querySelector('.orcamento-peca-produto')?.value || '',
-        nome: linha.querySelector('.orcamento-peca-produto')?.selectedOptions[0]?.textContent?.split(' (estoque')[0] || '',
+        nome: linha.querySelector('.orcamento-peca-nome')?.value?.trim() || linha.querySelector('.orcamento-peca-produto')?.selectedOptions[0]?.textContent?.split(' (estoque')[0] || '',
         quantidade: Math.max(1, parseInt(linha.querySelector('.orcamento-peca-qtd')?.value || '1', 10)),
         preco_venda: parseFloat(linha.querySelector('.orcamento-peca-venda')?.value || '0') || 0,
         preco_custo: parseFloat(linha.querySelector('.orcamento-peca-custo')?.value || '0') || 0
-      })).filter(peca => peca.produto_id);
+      })).filter(peca => peca.produto_id || peca.nome);
     }
 
     async function baixarPecasAoConcluir(orcamento) {
@@ -1104,11 +1196,13 @@
       const estoque = await window.api?.produtosBuscar?.();
       const produtos = estoque?.dados || [];
       for (const peca of (orcamento.pecas_usadas || [])) {
+        if (!peca.produto_id) continue;
         const produto = produtos.find(item => item._id === peca.produto_id);
         if (!produto) return { sucesso: false, erro: 'Uma das peças selecionadas não existe mais no estoque.' };
         if ((produto.quantidade || 0) < peca.quantidade) return { sucesso: false, erro: `Estoque insuficiente para ${produto.nome}.` };
       }
       for (const peca of (orcamento.pecas_usadas || [])) {
+        if (!peca.produto_id) continue;
         const resultado = await window.api?.movimentarEstoque?.(peca.produto_id, peca.quantidade, 'saida', `OS ${orcamento.os || orcamento._id} - serviço concluído`, orcamento.clienteId || '');
         if (!resultado?.sucesso) return resultado || { sucesso: false, erro: 'Não foi possível baixar uma peça.' };
       }
@@ -1120,11 +1214,24 @@
       const e = parseFloat(document.getElementById('budget-extra-cost-unificado')?.value) || 0;
       const pecas = obterPecasOrcamento();
       const vendaPecas = pecas.reduce((t,p) => t + p.preco_venda * p.quantidade, 0);
-      const custoPecas = pecas.reduce((t,p) => t + p.preco_custo * p.quantidade, 0);
+      const campoCustoPecas = document.getElementById('budget-parts-cost-unificado');
+      const custoManual = document.getElementById('budget-parts-cost-manual-unificado')?.checked || false;
+      const custoPecasCalculado = pecas.reduce((t,p) => t + p.preco_custo * p.quantidade, 0);
+      if (campoCustoPecas) {
+        campoCustoPecas.readOnly = !custoManual;
+        if (!custoManual) campoCustoPecas.value = custoPecasCalculado.toFixed(2);
+      }
+      const custoPecas = custoManual ? (parseFloat(campoCustoPecas?.value) || 0) : custoPecasCalculado;
       const total = maoObra + vendaPecas + e;
-      document.getElementById('budget-parts-cost-unificado').value = custoPecas.toFixed(2);
       document.getElementById('budget-value-unificado').value = total.toFixed(2);
       document.getElementById('budget-lucro-unificado').value = (total - custoPecas - e).toFixed(2);
+    }
+
+    function alternarCustoPecasManual() {
+      const campoCustoPecas = document.getElementById('budget-parts-cost-unificado');
+      const custoManual = document.getElementById('budget-parts-cost-manual-unificado')?.checked || false;
+      if (campoCustoPecas) campoCustoPecas.readOnly = !custoManual;
+      calcularLucroUnificado();
     }
 
     function openBudgetModalUnificado(budget = null) {
@@ -1146,6 +1253,8 @@
       document.getElementById('budget-labor-unificado').value = budget ? (budget.mao_obra ?? budget.valor ?? '') : '';
       document.getElementById('budget-value-unificado').value = budget ? budget.valor || '' : '';
       document.getElementById('budget-parts-cost-unificado').value = budget ? budget.pecas || '' : '';
+      document.getElementById('budget-parts-cost-manual-unificado').checked = Boolean(budget?.custo_pecas_manual);
+      document.getElementById('budget-parts-cost-unificado').readOnly = !budget?.custo_pecas_manual;
       document.getElementById('budget-extra-cost-unificado').value = budget ? budget.extras || '' : '';
       document.getElementById('budget-problem-unificado').value = budget ? budget.defeito || '' : '';
       document.getElementById('budget-servico-unificado').value = budget ? budget.servico || '' : '';
@@ -1225,6 +1334,7 @@
         valor: valor,
         mao_obra: parseFloat(document.getElementById('budget-labor-unificado').value) || 0,
         pecas: parseFloat(document.getElementById('budget-parts-cost-unificado').value) || 0,
+        custo_pecas_manual: document.getElementById('budget-parts-cost-manual-unificado').checked,
         extras: parseFloat(document.getElementById('budget-extra-cost-unificado').value) || 0,
         lucro: parseFloat(document.getElementById('budget-lucro-unificado').value) || 0,
         pagamento: pagamentoStatus,
@@ -1262,7 +1372,7 @@
         if (resultado.sucesso) {
           const orcamentoId = id || resultado.dados._id;
           const baixa = await baixarPecasAoConcluir({ ...body, _id: orcamentoId, status_anterior: statusAnterior });
-          if (baixa.sucesso && body.status === 'concluido' && body.pecas_usadas.length && !body.pecas_baixadas) {
+          if (baixa.sucesso && body.status === 'concluido' && body.pecas_usadas.some(peca => peca.produto_id) && !body.pecas_baixadas) {
             body.pecas_baixadas = true;
             await window.api.atualizar('vendas', orcamentoId, body);
           } else if (!baixa.sucesso) {
@@ -1288,7 +1398,9 @@
       const entradas = await window.api.buscar('caixa_entrada');
       if (entradas.dados?.some(e => e.orcamentoId === orcamentoId && e.status !== 'cancelado')) return { sucesso: true, existente: true };
       const pecas = body.pecas_usadas || [];
-      const custoPecas = pecas.reduce((t,p) => t + (Number(p.preco_custo)||0) * (Number(p.quantidade)||0), 0);
+      const custoPecas = body.custo_pecas_manual
+        ? (Number(body.pecas) || 0)
+        : pecas.reduce((t,p) => t + (Number(p.preco_custo)||0) * (Number(p.quantidade)||0), 0);
       const vendaPecas = pecas.reduce((t,p) => t + (Number(p.preco_venda)||0) * (Number(p.quantidade)||0), 0);
       return window.api.salvar('caixa_entrada', {
         data: new Date().toISOString().split('T')[0], tipo: 'servico',
