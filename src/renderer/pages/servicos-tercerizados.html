@@ -1,0 +1,1047 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Serviços Terceirizados - SUIT-TECH</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <script>
+    (function() {
+      const sessao = localStorage.getItem('sessao_suittech');
+      if (!sessao) { window.location.href = 'login.html'; return; }
+      try {
+        const dados = JSON.parse(sessao);
+        if (!dados.logado) { window.location.href = 'login.html'; return; }
+      } catch (e) { window.location.href = 'login.html'; }
+    })();
+  </script>
+  <link rel="stylesheet" href="../css/tema-novo-overrides.css">
+  <link rel="stylesheet" href="../css/theme.css">
+  <script src="../js/theme.js"></script>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <span class="logo"><img src="../assets/logo.png" alt="SUIT-TECH"></span>
+        <div>
+          <h1>SUIT-TECH</h1>
+          <small>Assistência Técnica</small>
+        </div>
+      </div>
+      <div id="menu-container"></div>
+      <footer class="sidebar-footer">
+        <span>Rodando local</span>
+        <br>
+        <button onclick="fazerLogout()" style="background: none; border: none; color: var(--danger); cursor: pointer; font-size: 12px; margin-top: 8px;">🚪 Sair</button>
+      </footer>
+    </aside>
+
+    <main class="content">
+      <header class="topbar">
+        <div class="topbar-left">
+          <h2>🏪 Serviços Terceirizados</h2>
+        </div>
+        <div class="topbar-right">
+          <button class="btn btn-primary" onclick="openClienteTercerizadoModal()">+ Novo Cliente Terceirizado</button>
+          <button class="btn btn-success" onclick="atualizarTudo()">🔄 Atualizar</button>
+        </div>
+      </header>
+
+      <section class="panel">
+        <div class="toolbar">
+          <input type="text" id="search-cliente-tercerizado" placeholder="🔍 Buscar cliente..." oninput="renderClientesTercerizados()">
+          <select id="filter-status" onchange="renderClientesTercerizados()">
+            <option value="">Todos os status</option>
+            <option value="pendente">⏳ Pendente</option>
+            <option value="em_analise">🔍 Em Análise</option>
+            <option value="em_execucao">🔧 Em Execução</option>
+            <option value="aguardando_pecas">⏸️ Aguardando Peças</option>
+            <option value="pronto">✅ Pronto</option>
+            <option value="aguardando_pagamento">💰 Aguardando Pagamento</option>
+            <option value="recebido">✅ Recebido</option>
+          </select>
+          <select id="filter-month" onchange="renderClientesTercerizados()">
+            <option value="">Todos os meses</option>
+            <option value="1">Janeiro</option><option value="2">Fevereiro</option>
+            <option value="3">Março</option><option value="4">Abril</option>
+            <option value="5">Maio</option><option value="6">Junho</option>
+            <option value="7">Julho</option><option value="8">Agosto</option><option value="9">Setembro</option><option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option>
+          </select>
+          <input type="number" id="filter-year" value="2026" placeholder="Ano" style="width: 80px;" onchange="renderClientesTercerizados()">
+          <span style="color: var(--text-muted); font-size: 13px;" id="cliente-tercerizado-count">0 clientes</span>
+          <button class="btn btn-purple" onclick="exportarServicosTercerizadosCSV()" style="font-size: 12px;">📥 CSV</button>
+        </div>
+        <div class="table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Nome</th>
+                <th>Telefone</th>
+                <th>E-mail</th>
+                <th>Equipamentos</th>
+                <th>Total a Receber</th>
+                <th class="actions">Ações</th>
+              </tr>
+            </thead>
+            <tbody id="clientes-tercerizados-table">
+              <tr><td colspan="6" class="empty">Carregando...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- MODAL CLIENTE TERCERIZADO -->
+  <div id="cliente-tercerizado-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="cliente-tercerizado-modal-title">Novo Cliente Terceirizado</h3>
+        <button class="close" onclick="closeClienteTercerizadoModal()">&times;</button>
+      </div>
+      <form id="cliente-tercerizado-form" onsubmit="saveClienteTercerizado(event)">
+        <input type="hidden" id="cliente-tercerizado-id">
+        <div class="form-grid">
+          <div class="form-group span-2">
+            <label>Nome *</label>
+            <input type="text" id="cliente-tercerizado-nome" required placeholder="Nome da loja/cliente">
+          </div>
+          <div class="form-group">
+            <label>Telefone *</label>
+            <input type="text" id="cliente-tercerizado-telefone" required placeholder="(00) 00000-0000">
+          </div>
+          <div class="form-group">
+            <label>E-mail</label>
+            <input type="email" id="cliente-tercerizado-email" placeholder="email@exemplo.com">
+          </div>
+          <div class="form-group span-2">
+            <label>Endereço</label>
+            <input type="text" id="cliente-tercerizado-endereco" placeholder="Rua, número, bairro, cidade">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn" onclick="closeClienteTercerizadoModal()">Cancelar</button>
+          <button type="submit" class="btn btn-primary">💾 Salvar Cliente</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL EQUIPAMENTO -->
+  <div id="equipamento-modal" class="modal" style="z-index: 2000;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="equipamento-modal-title">Novo Equipamento</h3>
+        <button class="close" onclick="closeEquipamentoModal()">&times;</button>
+      </div>
+      <form id="equipamento-form" onsubmit="saveEquipamento(event)">
+        <input type="hidden" id="equipamento-id">
+        <input type="hidden" id="equipamento-cliente-id">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Marca *</label>
+            <input type="text" id="equipamento-marca" required placeholder="Ex: Samsung, Apple">
+          </div>
+          <div class="form-group">
+            <label>Modelo *</label>
+            <input type="text" id="equipamento-modelo" required placeholder="Ex: Galaxy S21, iPhone 13">
+          </div>
+          <div class="form-group">
+            <label>Serviço Executado *</label>
+            <input type="text" id="equipamento-servico" required placeholder="Ex: Troca de tela, FRP">
+          </div>
+          <div class="form-group">
+            <label>Valor Cobrado (R$) *</label>
+            <input type="number" min="0.01" step="0.01" id="equipamento-valor" required placeholder="0.00">
+          </div>
+          <div class="form-group">
+            <label>Custo (R$) *</label>
+            <input type="number" step="0.01" id="equipamento-custo" required placeholder="0.00">
+          </div>
+          <div class="form-group">
+            <label>Data de entrada do aparelho *</label>
+            <input type="date" id="equipamento-data-entrada" required>
+          </div>
+          <div class="form-group">
+            <label>Data de entrega *</label>
+            <input type="date" id="equipamento-data-entrega" required>
+          </div>
+          <div class="form-group">
+            <label>Status *</label>
+            <select id="equipamento-status" required>
+              <option value="pendente">⏳ Pendente</option>
+              <option value="em_analise">🔍 Em Análise</option>
+              <option value="em_execucao">🔧 Em Execução</option>
+              <option value="aguardando_pecas">⏸️ Aguardando Peças</option>
+              <option value="pronto">✅ Pronto</option>
+              <option value="aguardando_pagamento">💰 Aguardando Pagamento</option>
+              <option value="recebido" disabled>✅ Recebido (use o botão Receber)</option>
+            </select>
+          </div>
+          <div class="form-group span-2">
+            <label>Observações</label>
+            <textarea id="equipamento-observacoes" rows="2" placeholder="Detalhes adicionais..."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn" onclick="closeEquipamentoModal()">Cancelar</button>
+          <button type="submit" class="btn btn-primary">💾 Salvar Equipamento</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL DETALHES CLIENTE -->
+  <div id="detalhes-cliente-modal" class="modal" style="z-index: 1500;">
+    <div class="modal-content" style="max-width: 900px;">
+      <div class="modal-header">
+        <h3 id="detalhes-cliente-titulo">Detalhes do Cliente</h3>
+        <button class="close" onclick="closeDetalhesClienteModal()">&times;</button>
+      </div>
+      <div class="panel">
+        <div class="toolbar">
+          <h4 id="detalhes-cliente-nome" style="margin: 0;"></h4>
+          <button class="btn btn-primary" onclick="openEquipamentoModal()">+ Novo Equipamento</button>
+          <button class="btn btn-success" onclick="receberTodosEquipamentos()">💰 Receber todos em aberto</button>
+        </div>
+        
+        <!-- Dashboard Financeiro -->
+        <div class="stats-grid" style="margin: 15px 0;">
+          <div class="stat-card accent-gold">
+            <span class="stat-label">Total Faturado</span>
+            <strong class="stat-value" id="dashboard-total-faturado">R$ 0,00</strong>
+          </div>
+          <div class="stat-card accent-orange">
+            <span class="stat-label">Total em Aberto</span>
+            <strong class="stat-value" id="dashboard-total-aberto">R$ 0,00</strong>
+          </div>
+          <div class="stat-card accent-green">
+            <span class="stat-label">Total Recebido</span>
+            <strong class="stat-value" id="dashboard-total-recebido">R$ 0,00</strong>
+          </div>
+          <div class="stat-card accent-purple">
+            <span class="stat-label">Lucro Estimado</span>
+            <strong class="stat-value" id="dashboard-lucro">R$ 0,00</strong>
+          </div>
+        </div>
+        <div class="table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Marca</th>
+                <th>Modelo</th>
+                <th>Serviço</th>
+                <th>Valor</th>
+                <th>Custo</th>
+                <th>Data Entrada</th>
+                <th>Data Entrega</th>
+                <th>Status</th>
+                <th class="actions">Ações</th>
+              </tr>
+            </thead>
+            <tbody id="equipamentos-table">
+              <tr><td colspan="9" class="empty">Nenhum equipamento cadastrado</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn" onclick="fecharDetalhesClienteModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST -->
+  <div id="toast" class="toast"></div>
+
+  <script src="../js/api.js"></script>
+  <script src="../js/app.js"></script>
+  <script>
+    // Função auxiliar para data atual no formato ISO
+    function dataLocalHojeISO() {
+      const hoje = new Date();
+      const ano = hoje.getFullYear();
+      const mes = String(hoje.getMonth() + 1).padStart(2, '0');
+      const dia = String(hoje.getDate()).padStart(2, '0');
+      return `${ano}-${mes}-${dia}`;
+    }
+    
+    function showToast(mensagem, tipo = 'success') {
+      const toast = document.getElementById('toast');
+      if (!toast) return;
+      toast.textContent = mensagem;
+      toast.className = 'toast toast-' + tipo;
+      setTimeout(() => toast.classList.add('show'), 100);
+      setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+
+    function escaparHtmlTercerizado(valor) {
+      return String(valor ?? '').replace(/[&<>"']/g, caractere => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      })[caractere]);
+    }
+
+    function idSeguroTercerizado(valor) {
+      return encodeURIComponent(String(valor ?? '')).replace(/'/g, '%27');
+    }
+
+    function equipamentoRecebido(eq) {
+      return !!(eq && (eq.recebido || eq.status === 'recebido'));
+    }
+
+    function formatarDataTercerizado(valor) {
+      if (!valor) return '-';
+      const m = String(valor).match(/^(\d{4})-(\d{2})-(\d{2})/);
+      return m ? `${m[3]}/${m[2]}/${m[1]}` : escaparHtmlTercerizado(valor);
+    }
+
+    function fazerLogout() {
+      if (confirm('Deseja realmente sair?')) {
+        localStorage.removeItem('sessao_suittech');
+        window.location.href = 'login.html';
+      }
+    }
+
+    let clientesTercerizadosCache = [];
+    let clienteAtualDetalhes = null;
+    let recebendoTercerizado = false;
+
+    function persistirClienteTercerizadoLocal(cliente) {
+      const lista = clientesTercerizadosCache;
+      const clienteIndex = lista.findIndex(c => c._id === cliente._id);
+      if (clienteIndex === -1) return -1;
+      lista[clienteIndex] = cliente;
+      lista[clienteIndex].data_atualizacao = new Date().toISOString();
+      localStorage.setItem('dados_servicos_tercerizados', JSON.stringify(lista));
+      clientesTercerizadosCache = lista;
+      if (clienteAtualDetalhes && clienteAtualDetalhes._id === cliente._id) {
+        clienteAtualDetalhes = lista[clienteIndex];
+      }
+      return clienteIndex;
+    }
+
+    async function persistirClienteTercerizadoApi(cliente) {
+      if (!window.api || !window.api.atualizar) return { sucesso: false, erro: 'API de persistência indisponível' };
+      try {
+        const resultado = await window.api.atualizar('servicos_tercerizados', cliente._id, cliente);
+        return resultado && resultado.sucesso ? { sucesso: true, dados: resultado.dados } : { sucesso: false, erro: resultado?.erro || 'Falha ao sincronizar o cadastro' };
+      } catch (apiError) {
+        return { sucesso: false, erro: apiError.message || 'Falha ao sincronizar o cadastro' };
+      }
+    }
+
+    function montarEntradaCaixaTercerizado(cliente, equipamento, existente = null) {
+      const valor = Math.max(0, Number(equipamento.valor) || 0);
+      const custo = Math.max(0, Number(equipamento.custo) || 0);
+      const equipamentoId = equipamento._id || ('eq_' + Date.now().toString(36));
+      const descricao = `Serviço terceirizado: ${cliente.nome || 'Cliente'} - ${equipamento.marca || ''} ${equipamento.modelo || ''} - ${equipamento.servico || ''}`
+        .replace(/\s+/g, ' ').trim();
+      return {
+        ...(existente || {}),
+        _id: (existente && existente._id) || equipamento.caixa_entrada_id || ('ce_terc_' + equipamentoId.replace(/[^a-zA-Z0-9_-]/g, '_')),
+        data: (existente && existente.data) || equipamento.data_recebimento || dataLocalHojeISO(),
+        tipo: 'servico',
+        descricao,
+        venda: valor,
+        custo,
+        valor_mao_obra: valor,
+        valor_pecas: 0,
+        custo_pecas: 0,
+        quantidade_pecas: 0,
+        cliente_nome: cliente.nome || '',
+        cliente_id: cliente._id || '',
+        observacao: equipamento.observacoes || '',
+        forma_pagamento: equipamento.forma_pagamento || (existente && existente.forma_pagamento) || 'dinheiro',
+        categoria: 'Serviços Terceirizados',
+        conta_id: (existente && existente.conta_id) || '',
+        conta_nome: (existente && existente.conta_nome) || '',
+        desconto: 0,
+        taxa: 0,
+        valor_liquido: valor,
+        lucro: valor - custo,
+        recorrente: false,
+        status: 'confirmado',
+        origem: 'servicos_tercerizados',
+        servico_tercerizado_id: cliente._id || '',
+        servico_tercerizado_equipamento_id: equipamentoId,
+        data_servico: equipamento.data_entrada || '',
+        data_entrega: equipamento.data_entrega || '',
+        data_criacao: (existente && existente.data_criacao) || new Date().toISOString()
+      };
+    }
+
+    async function lancarValorTercerizadoNoCaixa(cliente, equipamento) {
+      if (!window.api || !window.api.salvar || !window.api.buscar) {
+        return { sucesso: false, erro: 'Banco de dados não disponível' };
+      }
+      equipamento._id = equipamento._id || ('eq_' + String(cliente._id || 'cliente').replace(/[^a-zA-Z0-9_-]/g, '_') + '_' + String((cliente.equipamentos || []).indexOf(equipamento)));
+      try {
+        // A referência estável impede duplicar a entrada se a confirmação do cliente falhar.
+        const consulta = await window.api.buscar('caixa_entrada');
+        if (!consulta || !consulta.sucesso) return { sucesso: false, erro: consulta?.erro || 'Não foi possível verificar o Caixa Entrada' };
+        const existente = (consulta.dados || []).find(item =>
+          item._id === equipamento.caixa_entrada_id ||
+          item.servico_tercerizado_equipamento_id === equipamento._id
+        );
+        if (existente) return { sucesso: true, dados: existente, jaLancado: true };
+        const entradaData = montarEntradaCaixaTercerizado(cliente, equipamento);
+        const resultado = await window.api.salvar('caixa_entrada', entradaData);
+        if (!resultado || !resultado.sucesso) {
+          return { sucesso: false, erro: resultado?.erro || 'Falha ao lançar no Caixa Entrada' };
+        }
+        return { sucesso: true, dados: resultado.dados && resultado.dados._id ? resultado.dados : entradaData };
+      } catch (erro) {
+        return { sucesso: false, erro: erro.message || 'Falha ao lançar no Caixa Entrada' };
+      }
+    }
+
+    async function marcarEquipamentoRecebido(index, { silencioso } = {}) {
+      if (!clienteAtualDetalhes) return { sucesso: false, erro: 'Cliente não selecionado' };
+      const equipamentos = clienteAtualDetalhes.equipamentos || [];
+      const equipamento = equipamentos[index];
+      if (!equipamento) return { sucesso: false, erro: 'Equipamento não encontrado' };
+      if (equipamentoRecebido(equipamento) && equipamento.caixa_entrada_id) {
+        return { sucesso: true, jaLancado: true, valor: Number(equipamento.valor) || 0 };
+      }
+      const lancamento = await lancarValorTercerizadoNoCaixa(clienteAtualDetalhes, equipamento);
+      if (!lancamento.sucesso) return lancamento;
+      const clienteAtualizado = JSON.parse(JSON.stringify(clienteAtualDetalhes));
+      const itemAtualizado = {
+        ...clienteAtualizado.equipamentos[index],
+        _id: equipamento._id,
+        recebido: true,
+        status: 'recebido',
+        data_recebimento: dataLocalHojeISO(),
+        caixa_entrada_id: lancamento.dados._id
+      };
+      clienteAtualizado.equipamentos[index] = itemAtualizado;
+      const salvo = await persistirClienteTercerizadoApi(clienteAtualizado);
+      if (!salvo.sucesso) {
+        return { sucesso: false, erro: `Entrada criada no Caixa Entrada, mas não foi possível atualizar o cliente: ${salvo.erro}. Tente novamente; o sistema verificará o lançamento existente.` };
+      }
+      persistirClienteTercerizadoLocal(clienteAtualizado);
+      if (!silencioso) {
+        showToast('Recebimento lançado no Caixa Entrada. Valor: R$ ' + (Number(itemAtualizado.valor) || 0).toFixed(2).replace('.', ','), 'success');
+        renderEquipamentos();
+        renderClientesTercerizados();
+      }
+      return { sucesso: true, valor: Number(itemAtualizado.valor) || 0 };
+    }
+
+    // ============================================
+    // CARREGAR CLIENTES TERCERIZADOS
+    // ============================================
+    async function loadClientesTercerizados() {
+      let local = [];
+      try {
+        const salvo = JSON.parse(localStorage.getItem('dados_servicos_tercerizados') || '[]');
+        if (Array.isArray(salvo)) local = salvo;
+      } catch (erro) {
+        console.warn('Cache local de serviços terceirizados inválido:', erro);
+      }
+      try {
+        if (window.api && window.api.buscar) {
+          const resultado = await window.api.buscar('servicos_tercerizados');
+          if (resultado && resultado.sucesso) {
+            const dadosBanco = Array.isArray(resultado.dados) ? resultado.dados : [];
+            if (resultado.remoto) {
+              clientesTercerizadosCache = dadosBanco;
+            } else {
+              const porId = new Map(local.map(c => [c._id, c]));
+              dadosBanco.forEach(c => porId.set(c._id, c));
+              clientesTercerizadosCache = Array.from(porId.values());
+            }
+            localStorage.setItem('dados_servicos_tercerizados', JSON.stringify(clientesTercerizadosCache));
+            renderClientesTercerizados();
+            return;
+          }
+        }
+        clientesTercerizadosCache = local;
+      } catch (erro) {
+        console.error('Erro ao carregar clientes terceirizados:', erro);
+        clientesTercerizadosCache = local;
+      }
+      renderClientesTercerizados();
+    }
+
+    // ============================================
+    // RENDERIZAR CLIENTES TERCERIZADOS
+    // ============================================
+    function renderClientesTercerizados() {
+      const q = document.getElementById('search-cliente-tercerizado')?.value.toLowerCase() || '';
+      const statusFilter = document.getElementById('filter-status')?.value || '';
+      const monthFilter = document.getElementById('filter-month')?.value || '';
+      const yearFilter = document.getElementById('filter-year')?.value || '';
+      const tbody = document.getElementById('clientes-tercerizados-table');
+      const countEl = document.getElementById('cliente-tercerizado-count');
+      if (!tbody) return;
+      let filtered = clientesTercerizadosCache.filter(c =>
+        [c.nome, c.telefone, c.email].some(v => String(v || '').toLowerCase().includes(q))
+      );
+      if (statusFilter) {
+        filtered = filtered.filter(c => (c.equipamentos || []).some(eq =>
+          (statusFilter === 'recebido' ? equipamentoRecebido(eq) : (eq.status || 'pendente') === statusFilter)
+        ));
+      }
+      if (monthFilter && yearFilter) {
+        filtered = filtered.filter(c => (c.equipamentos || []).some(eq => {
+          const data = String(eq.data_entrada || eq.data_entrega || '').slice(0, 10);
+          const m = data.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+          return !!m && Number(m[1]) === Number(yearFilter) && Number(m[2]) === Number(monthFilter);
+        }));
+      }
+      if (countEl) countEl.textContent = `${filtered.length} clientes`;
+      if (!filtered.length) {
+        tbody.innerHTML = `<tr><td colspan="6" class="empty">${clientesTercerizadosCache.length ? 'Nenhum cliente encontrado' : 'Nenhum cliente cadastrado'}</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = filtered.map(c => {
+        const equipamentos = c.equipamentos || [];
+        const totalReceber = equipamentos.reduce((total, eq) => total + (equipamentoRecebido(eq) ? 0 : (Number(eq.valor) || 0)), 0);
+        return `
+          <tr>
+            <td><strong>${escaparHtmlTercerizado(c.nome || '-')}</strong></td>
+            <td>${escaparHtmlTercerizado(c.telefone || '-')}</td>
+            <td>${escaparHtmlTercerizado(c.email || '-')}</td>
+            <td>${equipamentos.length} equipamento(s)</td>
+            <td style="color: ${totalReceber > 0 ? '#22c55e' : '#8899bb'}">R$ ${totalReceber.toFixed(2).replace('.', ',')}</td>
+            <td class="actions">
+              <button class="btn btn-primary" onclick="verDetalhesCliente(decodeURIComponent('${idSeguroTercerizado(c._id)}'))" style="padding:4px 12px;font-size:12px;" title="Ver detalhes">👁️</button>
+              <button class="btn btn-success" onclick="cobrarCliente(decodeURIComponent('${idSeguroTercerizado(c._id)}'))" style="padding:4px 12px;font-size:12px;" title="Preparar cobrança amigável no WhatsApp">💬</button>
+              <button class="btn btn-primary" onclick="editClienteTercerizado(decodeURIComponent('${idSeguroTercerizado(c._id)}'))" style="padding:4px 12px;font-size:12px;" title="Editar">✏️</button>
+              <button class="btn btn-danger" onclick="deleteClienteTercerizado(decodeURIComponent('${idSeguroTercerizado(c._id)}'))" style="padding:4px 12px;font-size:12px;" title="Excluir">🗑️</button>
+            </td>
+          </tr>`;
+      }).join('');
+    }
+
+    // ============================================
+    // MODAL CLIENTE TERCERIZADO
+    // ============================================
+    function openClienteTercerizadoModal(cliente = null) {
+      document.getElementById('cliente-tercerizado-modal-title').textContent = cliente ? '✏️ Editar Cliente Terceirizado' : '➕ Novo Cliente Terceirizado';
+      document.getElementById('cliente-tercerizado-id').value = cliente ? cliente._id : '';
+      document.getElementById('cliente-tercerizado-nome').value = cliente ? cliente.nome : '';
+      document.getElementById('cliente-tercerizado-telefone').value = cliente ? cliente.telefone : '';
+      document.getElementById('cliente-tercerizado-email').value = cliente ? cliente.email : '';
+      document.getElementById('cliente-tercerizado-endereco').value = cliente ? cliente.endereco : '';
+      document.getElementById('cliente-tercerizado-modal').classList.add('open');
+    }
+
+    function closeClienteTercerizadoModal() {
+      document.getElementById('cliente-tercerizado-modal').classList.remove('open');
+    }
+
+    // ============================================
+    // SALVAR CLIENTE TERCERIZADO
+    // ============================================
+    async function saveClienteTercerizado(e) {
+      e.preventDefault();
+      const id = document.getElementById('cliente-tercerizado-id').value;
+      const clienteAntigo = id ? clientesTercerizadosCache.find(c => c._id === id) : null;
+      const body = {
+        ...(clienteAntigo || {}),
+        _id: id || ('st_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6)),
+        nome: document.getElementById('cliente-tercerizado-nome').value.trim(),
+        telefone: document.getElementById('cliente-tercerizado-telefone').value.trim(),
+        email: document.getElementById('cliente-tercerizado-email').value.trim(),
+        endereco: document.getElementById('cliente-tercerizado-endereco').value.trim(),
+        equipamentos: clienteAntigo?.equipamentos || [],
+        data_criacao: clienteAntigo?.data_criacao || new Date().toISOString(),
+        data_atualizacao: new Date().toISOString()
+      };
+      if (!body.nome || !body.telefone) { showToast('Nome e telefone são obrigatórios.', 'error'); return; }
+      try {
+        if (window.api && window.api.salvar) {
+          const resultado = id
+            ? await window.api.atualizar('servicos_tercerizados', id, body)
+            : await window.api.salvar('servicos_tercerizados', body);
+          if (!resultado || !resultado.sucesso) throw new Error(resultado?.erro || 'Falha ao salvar o cliente');
+        }
+        const indice = clientesTercerizadosCache.findIndex(c => c._id === body._id);
+        if (indice < 0) clientesTercerizadosCache.push(body);
+        else clientesTercerizadosCache[indice] = body;
+        localStorage.setItem('dados_servicos_tercerizados', JSON.stringify(clientesTercerizadosCache));
+        closeClienteTercerizadoModal();
+        showToast('Cliente salvo com sucesso.', 'success');
+        renderClientesTercerizados();
+      } catch (erro) {
+        console.error('Erro ao salvar cliente terceirizado:', erro);
+        showToast('Não foi possível salvar o cliente: ' + erro.message, 'error');
+      }
+    }
+
+    // ============================================
+    // EDITAR CLIENTE TERCERIZADO
+    // ============================================
+    async function editClienteTercerizado(id) {
+      try {
+        const c = clientesTercerizadosCache.find(x => x._id === id);
+        if (c) {
+          openClienteTercerizadoModal(c);
+        } else {
+          showToast('❌ Cliente não encontrado', 'error');
+        }
+      } catch (erro) {
+        console.error('Erro:', erro);
+        showToast('❌ Erro ao buscar cliente', 'error');
+      }
+    }
+
+    // ============================================
+    // DELETAR CLIENTE TERCERIZADO
+    // ============================================
+    async function deleteClienteTercerizado(id) {
+      const cliente = clientesTercerizadosCache.find(c => c._id === id);
+      if (!cliente) return;
+      if ((cliente.equipamentos || []).some(eq => equipamentoRecebido(eq) || eq.caixa_entrada_id)) {
+        showToast('Este cliente possui recebimentos registrados. Mantenha o histórico para preservar o financeiro.', 'error');
+        return;
+      }
+      if (!confirm(`Excluir "${cliente.nome || 'este cliente'}"?`)) return;
+      try {
+        if (window.api && window.api.deletar) {
+          const resultado = await window.api.deletar('servicos_tercerizados', id);
+          if (!resultado || !resultado.sucesso) throw new Error(resultado?.erro || 'Falha ao excluir');
+        }
+        clientesTercerizadosCache = clientesTercerizadosCache.filter(c => c._id !== id);
+        localStorage.setItem('dados_servicos_tercerizados', JSON.stringify(clientesTercerizadosCache));
+        showToast('Cliente excluído.', 'success');
+        renderClientesTercerizados();
+      } catch (erro) {
+        showToast('Não foi possível excluir o cliente: ' + erro.message, 'error');
+      }
+    }
+
+    // ============================================
+    // DETALHES DO CLIENTE
+    // ============================================
+    function verDetalhesCliente(id) {
+      console.log('Ver detalhes do cliente:', id);
+      console.log('Cache de clientes:', clientesTercerizadosCache);
+      
+      const cliente = clientesTercerizadosCache.find(c => c._id === id);
+      if (!cliente) {
+        console.error('Cliente não encontrado no cache');
+        showToast('❌ Cliente não encontrado', 'error');
+        return;
+      }
+      
+      console.log('Cliente encontrado:', cliente);
+      clienteAtualDetalhes = cliente;
+      document.getElementById('detalhes-cliente-titulo').textContent = `📋 Equipamentos de ${cliente.nome}`;
+      document.getElementById('detalhes-cliente-nome').textContent = `${cliente.nome} - ${cliente.telefone}`;
+      renderEquipamentos();
+      document.getElementById('detalhes-cliente-modal').classList.add('open');
+      
+      console.log('Modal de detalhes aberto, clienteAtualDetalhes:', clienteAtualDetalhes);
+    }
+
+    function closeDetalhesClienteModal() {
+      document.getElementById('detalhes-cliente-modal').classList.remove('open');
+      // Não nullificar clienteAtualDetalhes aqui, pois pode ser necessário
+      // Apenas nullificar quando fechar diretamente sem abrir equipamento
+    }
+    
+    function fecharDetalhesClienteModal() {
+      document.getElementById('detalhes-cliente-modal').classList.remove('open');
+      clienteAtualDetalhes = null; // Nullificar apenas quando fechar definitivamente
+    }
+
+    // ============================================
+    // RENDERIZAR EQUIPAMENTOS
+    // ============================================
+    function renderEquipamentos() {
+      if (!clienteAtualDetalhes) return;
+      
+      const tbody = document.getElementById('equipamentos-table');
+      const equipamentos = clienteAtualDetalhes.equipamentos || [];
+      
+      if (equipamentos.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="9" class="empty">Nenhum equipamento cadastrado</td></tr>`;
+        atualizarDashboard(equipamentos);
+        return;
+      }
+
+      // Mapeamento de status para exibição
+      const statusMap = {
+        'pendente': '⏳ Pendente',
+        'em_analise': '🔍 Em Análise',
+        'em_execucao': '🔧 Em Execução',
+        'aguardando_pecas': '⏸️ Aguardando Peças',
+        'pronto': '✅ Pronto',
+        'aguardando_pagamento': '💰 Aguardando Pagamento',
+        'recebido': '✅ Recebido'
+      };
+
+      tbody.innerHTML = equipamentos.map((eq, index) => {
+        const status = equipamentoRecebido(eq) ? 'recebido' : (eq.status || 'pendente');
+        const statusDisplay = statusMap[status] || status;
+        const precisaRegistrar = !equipamentoRecebido(eq) || !eq.caixa_entrada_id;
+        
+        return `
+          <tr>
+            <td>${escaparHtmlTercerizado(eq.marca || '-')}</td>
+            <td>${escaparHtmlTercerizado(eq.modelo || '-')}</td>
+            <td>${escaparHtmlTercerizado(eq.servico || '-')}</td>
+            <td>R$ ${(Number(eq.valor) || 0).toFixed(2).replace('.', ',')}</td>
+            <td>R$ ${(Number(eq.custo) || 0).toFixed(2).replace('.', ',')}</td>
+            <td>${formatarDataTercerizado(eq.data_entrada || eq.data_criacao)}</td>
+            <td>${formatarDataTercerizado(eq.data_entrega)}</td>
+            <td>${escaparHtmlTercerizado(statusDisplay)}</td>
+            <td class="actions">
+              ${precisaRegistrar ? `<button class="btn btn-success" onclick="receberEquipamento(${index})" style="padding:4px 8px;font-size:11px;" title="Registrar recebimento no Caixa Entrada">${equipamentoRecebido(eq) ? '🔄 Regularizar Caixa' : '💰 Receber'}</button>` : ''}
+              <button class="btn btn-primary" onclick="editEquipamento(${index})" style="padding:4px 8px;font-size:11px;" title="Editar">✏️</button>
+              <button class="btn btn-danger" onclick="deleteEquipamento(${index})" style="padding:4px 8px;font-size:11px;" title="Excluir">🗑️</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+      
+      atualizarDashboard(equipamentos);
+    }
+    
+    // ============================================
+    // ATUALIZAR DASHBOARD FINANCEIRO
+    // ============================================
+    function atualizarDashboard(equipamentos) {
+      const totalFaturado = equipamentos.reduce((sum, eq) => sum + (Number(eq.valor) || 0), 0);
+      const totalCusto = equipamentos.reduce((sum, eq) => sum + (Number(eq.custo) || 0), 0);
+      
+      // Total em aberto: equipamentos que ainda não foram recebidos/pagos
+      const totalAberto = equipamentos.reduce((sum, eq) => {
+        return sum + (equipamentoRecebido(eq) ? 0 : (Number(eq.valor) || 0));
+      }, 0);
+      
+      // Total recebido: equipamentos que já foram pagos
+      const totalRecebido = equipamentos.reduce((sum, eq) => {
+        return sum + (equipamentoRecebido(eq) ? (Number(eq.valor) || 0) : 0);
+      }, 0);
+      
+      const lucro = totalFaturado - totalCusto;
+      
+      document.getElementById('dashboard-total-faturado').textContent = `R$ ${totalFaturado.toFixed(2).replace('.', ',')}`;
+      document.getElementById('dashboard-total-aberto').textContent = `R$ ${totalAberto.toFixed(2).replace('.', ',')}`;
+      document.getElementById('dashboard-total-recebido').textContent = `R$ ${totalRecebido.toFixed(2).replace('.', ',')}`;
+      document.getElementById('dashboard-lucro').textContent = `R$ ${lucro.toFixed(2).replace('.', ',')}`;
+    }
+
+    // ============================================
+    // MODAL EQUIPAMENTO
+    // ============================================
+    function openEquipamentoModal(equipamento = null, index = null) {
+      console.log('Abrindo modal de equipamento...', equipamento, index);
+      console.log('Cliente atual:', clienteAtualDetalhes);
+      
+      if (!clienteAtualDetalhes) {
+        showToast('Selecione um cliente antes de cadastrar o equipamento.', 'error');
+        return;
+      }
+      
+      document.getElementById('equipamento-modal-title').textContent = equipamento ? '✏️ Editar Equipamento' : '➕ Novo Equipamento';
+      document.getElementById('equipamento-id').value = index !== null ? index : '';
+      document.getElementById('equipamento-cliente-id').value = clienteAtualDetalhes ? clienteAtualDetalhes._id : '';
+      document.getElementById('equipamento-marca').value = equipamento ? equipamento.marca : '';
+      document.getElementById('equipamento-modelo').value = equipamento ? equipamento.modelo : '';
+      document.getElementById('equipamento-servico').value = equipamento ? equipamento.servico : '';
+      document.getElementById('equipamento-valor').value = equipamento ? equipamento.valor : '';
+      document.getElementById('equipamento-custo').value = equipamento ? equipamento.custo : '';
+      const recebido = equipamentoRecebido(equipamento);
+      document.getElementById('equipamento-status').value = recebido ? 'recebido' : (equipamento ? (equipamento.status || 'pendente') : 'pendente');
+      document.getElementById('equipamento-status').disabled = recebido;
+      const dataHoje = dataLocalHojeISO();
+      document.getElementById('equipamento-data-entrada').value = equipamento ? (equipamento.data_entrada || String(equipamento.data_criacao || '').slice(0, 10) || dataHoje) : dataHoje;
+      document.getElementById('equipamento-data-entrega').value = equipamento ? (equipamento.data_entrega || dataHoje) : dataHoje;
+      document.getElementById('equipamento-observacoes').value = equipamento ? equipamento.observacoes : '';
+      document.getElementById('equipamento-modal').classList.add('open');
+      
+      console.log('Modal aberto com sucesso, cliente:', clienteAtualDetalhes.nome);
+    }
+
+    function closeEquipamentoModal() {
+      document.getElementById('equipamento-modal').classList.remove('open');
+      document.getElementById('equipamento-status').disabled = false;
+    }
+
+    // ============================================
+    // SALVAR EQUIPAMENTO
+    // ============================================
+    async function saveEquipamento(e) {
+      e.preventDefault();
+      if (!clienteAtualDetalhes) { showToast('Selecione um cliente primeiro.', 'error'); return; }
+      const indexValue = document.getElementById('equipamento-id').value;
+      const index = indexValue === '' ? -1 : Number.parseInt(indexValue, 10);
+      const equipamentosAtuais = clienteAtualDetalhes.equipamentos || [];
+      const anterior = index >= 0 ? (equipamentosAtuais[index] || {}) : {};
+      const valor = Number(document.getElementById('equipamento-valor').value);
+      const custo = Number(document.getElementById('equipamento-custo').value);
+      const marca = document.getElementById('equipamento-marca').value.trim();
+      const modelo = document.getElementById('equipamento-modelo').value.trim();
+      const servico = document.getElementById('equipamento-servico').value.trim();
+      const dataEntrada = document.getElementById('equipamento-data-entrada').value;
+      const dataEntrega = document.getElementById('equipamento-data-entrega').value;
+      if (!marca || !modelo || !servico || !dataEntrada || !dataEntrega || !Number.isFinite(valor) || valor <= 0 || !Number.isFinite(custo) || custo < 0) {
+        showToast('Preencha marca, modelo, serviço e datas. O valor cobrado deve ser positivo e o custo não pode ser negativo.', 'error'); return;
+      }
+      const equipamento = {
+        ...anterior,
+        _id: anterior._id || ('eq_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6)),
+        marca, modelo, servico, valor, custo, data_entrada: dataEntrada, data_entrega: dataEntrega,
+        status: equipamentoRecebido(anterior) ? 'recebido' : document.getElementById('equipamento-status').value,
+        observacoes: document.getElementById('equipamento-observacoes').value.trim(),
+        recebido: equipamentoRecebido(anterior),
+        data_criacao: anterior.data_criacao || new Date().toISOString()
+      };
+      const clienteNovo = JSON.parse(JSON.stringify(clienteAtualDetalhes));
+      clienteNovo.equipamentos = [...(clienteNovo.equipamentos || [])];
+      if (index >= 0) clienteNovo.equipamentos[index] = equipamento;
+      else clienteNovo.equipamentos.push(equipamento);
+      try {
+        if (equipamentoRecebido(anterior)) {
+          const consulta = await window.api.buscar('caixa_entrada');
+          if (!consulta || !consulta.sucesso) throw new Error(consulta?.erro || 'Falha ao consultar Caixa Entrada');
+          const lancamentoAnterior = (consulta.dados || []).find(item => item._id === anterior.caixa_entrada_id || item.servico_tercerizado_equipamento_id === equipamento._id);
+          if (!lancamentoAnterior) throw new Error('O recebimento já marcado não foi encontrado no Caixa Entrada.');
+          const atualizado = await window.api.atualizar('caixa_entrada', lancamentoAnterior._id, montarEntradaCaixaTercerizado(clienteNovo, equipamento, lancamentoAnterior));
+          if (!atualizado || !atualizado.sucesso) throw new Error(atualizado?.erro || 'Não foi possível atualizar o lançamento financeiro');
+          equipamento.caixa_entrada_id = lancamentoAnterior._id;
+          clienteNovo.equipamentos[index] = equipamento;
+        }
+        const salvo = await persistirClienteTercerizadoApi(clienteNovo);
+        if (!salvo.sucesso) throw new Error(salvo.erro);
+        clientesTercerizadosCache = clientesTercerizadosCache.map(c => c._id === clienteNovo._id ? clienteNovo : c);
+        clienteAtualDetalhes = clienteNovo;
+        localStorage.setItem('dados_servicos_tercerizados', JSON.stringify(clientesTercerizadosCache));
+        closeEquipamentoModal();
+        renderEquipamentos();
+        renderClientesTercerizados();
+        showToast('Equipamento salvo com sucesso.', 'success');
+      } catch (erro) {
+        console.error('Erro ao salvar equipamento:', erro);
+        showToast('Não foi possível salvar o equipamento: ' + erro.message, 'error');
+      }
+    }
+
+    // ============================================
+    // EDITAR EQUIPAMENTO
+    // ============================================
+    function editEquipamento(index) {
+      if (!clienteAtualDetalhes) return;
+      const equipamentos = clienteAtualDetalhes.equipamentos || [];
+      if (equipamentos[index]) {
+        openEquipamentoModal(equipamentos[index], index);
+      }
+    }
+
+    // ============================================
+    // DELETAR EQUIPAMENTO
+    // ============================================
+    async function deleteEquipamento(index) {
+      if (!clienteAtualDetalhes) return;
+      const equipamento = (clienteAtualDetalhes.equipamentos || [])[index];
+      if (!equipamento) return;
+      if (equipamentoRecebido(equipamento) || equipamento.caixa_entrada_id) {
+        showToast('Não é possível excluir um equipamento com recebimento financeiro registrado.', 'error'); return;
+      }
+      if (!confirm('Excluir este equipamento?')) return;
+      const clienteNovo = JSON.parse(JSON.stringify(clienteAtualDetalhes));
+      clienteNovo.equipamentos.splice(index, 1);
+      try {
+        const salvo = await persistirClienteTercerizadoApi(clienteNovo);
+        if (!salvo.sucesso) throw new Error(salvo.erro);
+        clientesTercerizadosCache = clientesTercerizadosCache.map(c => c._id === clienteNovo._id ? clienteNovo : c);
+        clienteAtualDetalhes = clienteNovo;
+        localStorage.setItem('dados_servicos_tercerizados', JSON.stringify(clientesTercerizadosCache));
+        showToast('Equipamento excluído.', 'success');
+        renderEquipamentos();
+        renderClientesTercerizados();
+      } catch (erro) {
+        showToast('Não foi possível excluir o equipamento: ' + erro.message, 'error');
+      }
+    }
+
+    // ============================================
+    // RECEBER EQUIPAMENTO (REGISTRAR NO CAIXA ENTRADA)
+    // ============================================
+    async function receberEquipamento(index) {
+      if (!clienteAtualDetalhes || recebendoTercerizado) return;
+
+      const equipamentos = clienteAtualDetalhes.equipamentos || [];
+      const equipamento = equipamentos[index];
+      if (!equipamento) return;
+      if (!confirm(`💰 Registrar recebimento de ${equipamento.modelo} - R$ ${Number(equipamento.valor || 0).toFixed(2).replace('.', ',')}?\n\nO valor será lançado automaticamente no Caixa Entrada.`)) return;
+
+      recebendoTercerizado = true;
+      try {
+        const resultado = await marcarEquipamentoRecebido(index);
+        if (!resultado.sucesso) {
+          showToast('❌ O recebimento não foi concluído porque o lançamento no Caixa Entrada falhou' + (resultado.erro ? ': ' + resultado.erro : '.'), 'error');
+        }
+      } catch (erro) {
+        console.error('Erro:', erro);
+        showToast('❌ Erro: ' + erro.message, 'error');
+      } finally {
+        recebendoTercerizado = false;
+      }
+    }
+
+    async function receberTodosEquipamentos() {
+      if (!clienteAtualDetalhes || recebendoTercerizado) return;
+      const equipamentos = clienteAtualDetalhes.equipamentos || [];
+      const pendentes = equipamentos
+        .map((eq, index) => ({ eq, index }))
+        .filter(({ eq }) => !equipamentoRecebido(eq) || !eq.caixa_entrada_id);
+
+      if (pendentes.length === 0) {
+        showToast('✅ Não há valores em aberto para receber.', 'success');
+        return;
+      }
+
+      const total = pendentes.reduce((sum, item) => sum + (parseFloat(item.eq.valor) || 0), 0);
+      if (!confirm(`💰 Receber ${pendentes.length} serviço(s) de ${clienteAtualDetalhes.nome}?\nTotal: R$ ${total.toFixed(2).replace('.', ',')}\n\nTodos os valores irão para o Caixa Entrada.`)) return;
+
+      recebendoTercerizado = true;
+      try {
+        let ok = 0;
+        let falhou = 0;
+        for (const item of pendentes) {
+          const resultado = await marcarEquipamentoRecebido(item.index, { silencioso: true });
+          if (resultado.sucesso) ok += 1;
+          else falhou += 1;
+        }
+        renderEquipamentos();
+        renderClientesTercerizados();
+        if (falhou === 0) {
+          showToast(`✅ ${ok} recebimento(s) lançados no Caixa Entrada!`, 'success');
+        } else {
+          showToast(`⚠️ ${ok} lançado(s) e ${falhou} não entraram no Caixa Entrada.`, 'warning');
+        }
+      } catch (erro) {
+        console.error('Erro:', erro);
+        showToast('❌ Erro: ' + erro.message, 'error');
+      } finally {
+        recebendoTercerizado = false;
+      }
+    }
+
+    // ============================================
+    // COBRAR CLIENTE VIA WHATSAPP
+    // ============================================
+    async function cobrarCliente(id) {
+      const cliente = clientesTercerizadosCache.find(c => c._id === id);
+      if (!cliente) { showToast('Cliente não encontrado.', 'error'); return; }
+      const pendentes = (cliente.equipamentos || []).filter(eq => !equipamentoRecebido(eq));
+      if (!pendentes.length) { showToast('Não há pendências de pagamento.', 'success'); return; }
+      const numeroLimpo = String(cliente.telefone || '').replace(/\D/g, '');
+      if (numeroLimpo.length < 10) { showToast('Telefone inválido para WhatsApp.', 'error'); return; }
+      const numero = numeroLimpo.startsWith('55') ? numeroLimpo : '55' + numeroLimpo;
+      const total = pendentes.reduce((sum, eq) => sum + (Number(eq.valor) || 0), 0);
+      let mensagem = `Oi ${cliente.nome || 'tudo bem'}! Tudo bem? 😊\n\n`;
+      mensagem += 'Passando para compartilhar um resumo dos serviços dos aparelhos que realizamos para vocês:\n\n';
+      pendentes.forEach(eq => {
+        mensagem += `• ${eq.marca || ''} ${eq.modelo || ''} — ${eq.servico || 'serviço'}: R$ ${(Number(eq.valor) || 0).toFixed(2).replace('.', ',')}\n`;
+      });
+      mensagem += `\nTotal em aberto: R$ ${total.toFixed(2).replace('.', ',')}\n\n`;
+      mensagem += 'Quando puder, me avise para alinharmos o pagamento. Se já foi pago, pode desconsiderar esta mensagem. Obrigado pela parceria! 🙏\n\nAbraço,\nSUIT-TECH';
+      const texto = encodeURIComponent(mensagem);
+      const appUrl = `whatsapp://send?phone=${numero}&text=${texto}`;
+      const webUrl = `https://wa.me/${numero}?text=${texto}`;
+      try {
+        if (window.electron?.abrirWhatsAppDesktop) {
+          const resultado = await window.electron.abrirWhatsAppDesktop(appUrl);
+          if (resultado?.sucesso) { showToast('Mensagem de cobrança preparada no WhatsApp. Revise e toque em Enviar.', 'success'); return; }
+        }
+      } catch (erro) { console.error('WhatsApp Desktop:', erro); }
+      const janela = window.open(webUrl, '_blank');
+      if (janela) showToast('Mensagem preparada no WhatsApp Web. Revise e toque em Enviar.', 'success');
+      else showToast('O navegador bloqueou a abertura do WhatsApp. Permita pop-ups e tente novamente.', 'error');
+    }
+
+    // ============================================
+    // EXPORTAR CSV
+    // ============================================
+    function exportarServicosTercerizadosCSV() {
+      try {
+        if (!clientesTercerizadosCache.length) { showToast('Nenhum dado para exportar.', 'error'); return; }
+        const campos = ['Cliente','Telefone','Email','Marca','Modelo','Serviço','Valor Cobrado','Custo','Data Entrada','Data Entrega','Status'];
+        const csvValor = valor => {
+          let texto = String(valor ?? '');
+          if (/^[=+@\-\t\r]/.test(texto)) texto = "'" + texto;
+          return '"' + texto.replace(/"/g, '""') + '"';
+        };
+        const linhas = [campos.map(csvValor).join(',')];
+        const statusMap = { pendente: 'Pendente', em_analise: 'Em Análise', em_execucao: 'Em Execução', aguardando_pecas: 'Aguardando Peças', pronto: 'Pronto', aguardando_pagamento: 'Aguardando Pagamento', recebido: 'Recebido' };
+        clientesTercerizadosCache.forEach(cliente => (cliente.equipamentos || []).forEach(eq => {
+          linhas.push([cliente.nome, cliente.telefone, cliente.email, eq.marca, eq.modelo, eq.servico, eq.valor, eq.custo, eq.data_entrada, eq.data_entrega, statusMap[eq.status] || eq.status || 'Pendente'].map(csvValor).join(','));
+        }));
+        const blob = new Blob(['\ufeff' + linhas.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `servicos_terceirizados_${dataLocalHojeISO()}.csv`;
+        document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(url);
+        showToast('CSV exportado com sucesso.', 'success');
+      } catch (erro) {
+        console.error('Erro ao exportar CSV:', erro);
+        showToast('Erro ao exportar CSV: ' + erro.message, 'error');
+      }
+    }
+
+    // ============================================
+    // ATUALIZAR TUDO
+    // ============================================
+    async function atualizarTudo() {
+      showToast('⏳ Atualizando...', 'warning');
+      await loadClientesTercerizados();
+      showToast('✅ Dados atualizados!', 'success');
+    }
+
+    // ============================================
+    // FECHAR MODAIS
+    // ============================================
+    document.addEventListener('click', function(e) {
+      if (e.target.classList.contains('modal')) e.target.classList.remove('open');
+    });
+
+    // ============================================
+    // INICIALIZAÇÃO
+    // ============================================
+    document.addEventListener('DOMContentLoaded', () => {
+      const ano = document.getElementById('filter-year');
+      if (ano) ano.value = String(new Date().getFullYear());
+      loadClientesTercerizados();
+    });
+
+    // ============================================
+    // EXPOSIÇÃO GLOBAL
+    // ============================================
+    window.loadClientesTercerizados = loadClientesTercerizados;
+    window.renderClientesTercerizados = renderClientesTercerizados;
+    window.openClienteTercerizadoModal = openClienteTercerizadoModal;
+    window.closeClienteTercerizadoModal = closeClienteTercerizadoModal;
+    window.saveClienteTercerizado = saveClienteTercerizado;
+    window.editClienteTercerizado = editClienteTercerizado;
+    window.deleteClienteTercerizado = deleteClienteTercerizado;
+    window.verDetalhesCliente = verDetalhesCliente;
+    window.closeDetalhesClienteModal = closeDetalhesClienteModal;
+    window.fecharDetalhesClienteModal = fecharDetalhesClienteModal;
+    window.openEquipamentoModal = openEquipamentoModal;
+    window.closeEquipamentoModal = closeEquipamentoModal;
+    window.saveEquipamento = saveEquipamento;
+    window.editEquipamento = editEquipamento;
+    window.deleteEquipamento = deleteEquipamento;
+    window.receberEquipamento = receberEquipamento;
+    window.receberTodosEquipamentos = receberTodosEquipamentos;
+    window.cobrarCliente = cobrarCliente;
+    window.atualizarTudo = atualizarTudo;
+    window.exportarServicosTercerizadosCSV = exportarServicosTercerizadosCSV;
+    window.atualizarDashboard = atualizarDashboard;
+    window.showToast = showToast;
+    window.fazerLogout = fazerLogout;
+  </script>
+
+  <script src="../js/carregarMenu.js"></script>
+  <script src="../js/glitter.js"></script>
+</body>
+</html>
