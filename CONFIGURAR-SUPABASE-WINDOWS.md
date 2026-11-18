@@ -147,13 +147,19 @@ Não use a chave `service_role` no aplicativo. Ela ignora as políticas de segur
 
 ## 7. Estado atual do projeto
 
-O aplicativo já usa o Supabase para ler e gravar registros quando a sessão está autenticada e associada a um workspace. Sem uma sessão remota ativa, a API ainda pode recorrer ao `localStorage`; por isso, confirme o e-mail e workspace usados no login se os dados online não aparecerem.
+O arquivo `src/renderer/js/api.js` ainda usa `localStorage`. Isso foi mantido de propósito para não destruir os dados atuais antes de realizar a migração.
 
-O fechamento mensal arquiva alguns movimentos na coleção `historico_mensal` e remove esses registos das coleções ativas. Os ecrãs financeiros e relatórios também consultam esse arquivo. Contas a pagar antigas com saldo em aberto são reativadas na coleção ativa ao abrir a página, preservando o vencimento e permitindo pagar ou abater; valores a receber ainda pendentes também voltam à coleção ativa, mantendo o saldo e permitindo registrar recebimentos. Contas quitadas continuam disponíveis como histórico de consulta. A leitura remota percorre páginas para não ficar limitada à primeira página de resultados do Supabase.
+A próxima alteração no código será feita para:
 
-O pacote não migra automaticamente dados locais antigos para o Supabase. Antes de remover dados locais, confirme no painel do Supabase que as coleções e o histórico contêm os registos esperados e mantenha um backup.
+1. Fazer login no Supabase;
+2. Identificar seu workspace;
+3. Ler e salvar registros no banco online;
+4. Enviar fotos para o Storage privado;
+5. Migrar os dados locais do Windows;
+6. Manter backup antes da migração;
+7. Remover do aplicativo as referências funcionais a Transferências e Comissões.
 
-## 8. Cuidados
+## 8. Não faça ainda
 
 Não apague:
 
@@ -162,7 +168,7 @@ Não apague:
 - A pasta `src/data`;
 - A instalação atual do Windows.
 
-Não apague os dados locais nem os backups até confirmar a integridade do workspace remoto e dos registos arquivados.
+Primeiro criaremos o banco, depois conectaremos o aplicativo em modo de teste e somente após conferirmos os dados faremos a migração definitiva.
 
 ## Referências oficiais
 

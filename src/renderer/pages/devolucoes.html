@@ -90,7 +90,7 @@
 
     async function loadDevolucoes() {
       try {
-        const result = await window.api.buscarComHistorico('devolucoes');
+        const result = await window.api.buscar('devolucoes');
         devolucoesCache = result.sucesso ? result.dados : [];
         renderDevolucoes();
         atualizarResumoDevolucoes();
@@ -139,10 +139,8 @@
           <td style="color:#ef4444;">- R$ ${(d.valor||0).toFixed(2).replace('.', ',')}</td>
           <td>${d.origem || 'Manual'}</td>
           <td class="actions">
-            ${d._arquivado_historico ? `<span title="Registo arquivado no histórico mensal; só de consulta.">🔒 Arquivado</span>` : `
-              <button class="btn btn-warning" onclick="cancelarDevolucao('${d._id}')" title="Cancelar">↩️</button>
-              <button class="btn btn-danger" onclick="deleteDevolucao('${d._id}')">🗑️</button>
-            `}
+            <button class="btn btn-warning" onclick="cancelarDevolucao('${d._id}')" title="Cancelar">↩️</button>
+            <button class="btn btn-danger" onclick="deleteDevolucao('${d._id}')">🗑️</button>
           </td>
         </tr>
       `).join('');

@@ -105,8 +105,8 @@
         // Buscar todas as coleções
         const entradas = await window.api.buscarComHistorico('caixa_entrada');
         const saidas = await window.api.buscarComHistorico('caixa_saida');
-        const contasPagar = await window.api.buscarComHistorico('contas_pagar');
-        const valoresReceber = await window.api.buscarComHistorico('valores_receber');
+        const contasPagar = await window.api.buscar('contas_pagar');
+        const valoresReceber = await window.api.buscar('valores_receber');
         const vendas = await window.api.buscar('vendas');
         const contas = await window.api.contasBuscar();
 

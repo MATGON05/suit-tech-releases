@@ -287,10 +287,8 @@
             <td>${item.forma_pagamento || '-'}</td>
             <td>${item.recorrente ? '🔄' : ''}</td>
             <td class="actions">
-              ${item._arquivado_historico ? `<span title="Registo arquivado no histórico mensal; só de consulta.">🔒 Arquivado</span>` : `
-                <button class="btn btn-primary" onclick="editCashIn('${item._id}')" title="Editar">✏️</button>
-                <button class="btn btn-danger" onclick="deleteCashIn('${item._id}')" title="Excluir">🗑️</button>
-              `}
+              <button class="btn btn-primary" onclick="editCashIn('${item._id}')" title="Editar">✏️</button>
+              <button class="btn btn-danger" onclick="deleteCashIn('${item._id}')" title="Excluir">🗑️</button>
             </td>
           </tr>
         `;

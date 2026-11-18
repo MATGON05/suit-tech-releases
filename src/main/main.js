@@ -71,23 +71,14 @@ async function getWorkspaceForUser(userId) {
 
 async function remoteBuscar(colecao) {
     if (!supabaseUser || !supabaseWorkspaceId) return null;
-    const PAGE_SIZE = 500;
-    const linhas = [];
-    for (let inicio = 0; ; inicio += PAGE_SIZE) {
-        const { data, error } = await supabase
-            .from('records')
-            .select('legacy_id,data')
-            .eq('workspace_id', supabaseWorkspaceId)
-            .eq('collection', colecao)
-            .order('created_at', { ascending: true })
-            .order('id', { ascending: true })
-            .range(inicio, inicio + PAGE_SIZE - 1);
-        if (error) throw error;
-        const pagina = data || [];
-        linhas.push(...pagina);
-        if (pagina.length < PAGE_SIZE) break;
-    }
-    return linhas.map(remoteRecord);
+    const { data, error } = await supabase
+        .from('records')
+        .select('legacy_id,data')
+        .eq('workspace_id', supabaseWorkspaceId)
+        .eq('collection', colecao)
+        .order('created_at', { ascending: true });
+    if (error) throw error;
+    return (data || []).map(remoteRecord);
 }
 
 async function remoteSalvar(colecao, dados) {

@@ -63,22 +63,20 @@ const api = {
             return { sucesso: false, dados: [], erro: error.message };
         }
     },
-
-    // Leitura para ecrãs históricos: o fecho mensal guarda os movimentos
-    // em historico_mensal e retira-os da coleção ativa. Não altera o arquivo.
+    // Une movimentos ativos com o arquivo mensal, apenas para consulta.
+    // Não restaura, altera nem remove registos do banco.
     buscarComHistorico: async function(colecao) {
         const [ativos, arquivo] = await Promise.all([
             this.buscar(colecao),
             this.buscar('historico_mensal')
         ]);
-        if (!ativos || !ativos.sucesso) return ativos || { sucesso: false, dados: [], erro: 'Falha ao consultar os registos ativos.' };
-        if (!arquivo || !arquivo.sucesso) return arquivo || { sucesso: false, dados: [], erro: 'Falha ao consultar o arquivo mensal.' };
-
-        const dados = ativos.dados || [];
-        const ids = new Set(dados.map(item => item && item._id).filter(Boolean).map(String));
+        if (!ativos || !ativos.sucesso) return ativos || { sucesso: false, dados: [], erro: 'Falha ao consultar movimentos ativos.' };
+        if (!arquivo || !arquivo.sucesso) return arquivo || { sucesso: false, dados: [], erro: 'Falha ao consultar o histórico mensal.' };
+        const dados = (ativos.dados || []).slice();
+        const ids = new Set(dados.map(item => item && item._id).filter(id => id != null).map(String));
         (arquivo.dados || []).slice().sort((a, b) => {
-            const mes = String(b?.mes || '').localeCompare(String(a?.mes || ''));
-            return mes || String(b?.data_arquivamento || '').localeCompare(String(a?.data_arquivamento || ''));
+            const mes = String(b && b.mes || '').localeCompare(String(a && a.mes || ''));
+            return mes || String(b && b.data_arquivamento || '').localeCompare(String(a && a.data_arquivamento || ''));
         }).forEach(registro => {
             if (!registro || registro.colecao !== colecao || !registro.dados) return;
             const item = registro.dados;
@@ -88,165 +86,6 @@ const api = {
             if (id) ids.add(id);
         });
         return { sucesso: true, dados, remoto: !!(ativos.remoto || arquivo.remoto) };
-    },
-
-    // Recria na coleção ativa uma conta arquivada que ainda tem saldo em aberto.
-    // O snapshot em historico_mensal é mantido; o registo reativado conserva o ID.
-    reativarContasPendentesHistoricas: async function(mesAtual) {
-        if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(mesAtual || '')) {
-            return { sucesso: false, erro: 'Mês atual inválido.' };
-        }
-        const [resultadoAtivas, resultadoHistorico] = await Promise.all([
-            this.buscar('contas_pagar'),
-            this.buscar('historico_mensal')
-        ]);
-        if (!resultadoAtivas?.sucesso) return resultadoAtivas || { sucesso: false, erro: 'Não foi possível ler as contas ativas.' };
-        if (!resultadoHistorico?.sucesso) return resultadoHistorico || { sucesso: false, erro: 'Não foi possível ler o histórico mensal.' };
-
-        const contasAtivas = resultadoAtivas.dados || [];
-        const idsAtivos = new Set(contasAtivas.map(conta => String(conta?._id || '')).filter(Boolean));
-        const statusEncerrados = ['paga', 'pago', 'quitada', 'quitado', 'paid', 'cancelada', 'cancelado', 'cancelled'];
-        const mesDaData = conta => {
-            const data = parseDataSegura(conta.vencimento_original || conta.vencimento);
-            return data ? `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, '0')}` : '';
-        };
-        const mesReferenciaDe = conta => /^\d{4}-(0[1-9]|1[0-2])$/.test(conta.mes_referencia || '')
-            ? conta.mes_referencia : mesDaData(conta);
-        const criarContaAtiva = (conta, referenciaAnterior) => {
-            const ativa = {
-                ...conta,
-                mes_referencia: mesAtual,
-                mes_referencia_anterior: referenciaAnterior,
-                vencimento_original: conta.vencimento_original || conta.vencimento || null,
-                arquivada: false
-            };
-            delete ativa._arquivado_historico;
-            delete ativa._mes_arquivo;
-            return ativa;
-        };
-        let reativadas = 0;
-
-        // Corrige também contas que já estão na coleção ativa, mas ficaram com arquivada=true.
-        for (const conta of contasAtivas) {
-            const id = String(conta?._id || '');
-            if (!id || statusEncerrados.includes(String(conta.status || '').trim().toLowerCase())) continue;
-            if ((Number(conta.saldo_restante ?? conta.valor) || 0) <= 0) continue;
-            const referencia = mesReferenciaDe(conta);
-            if (!conta.arquivada && (!referencia || referencia >= mesAtual)) continue;
-            const referenciaAnterior = referencia && referencia < mesAtual ? referencia : (conta.mes_referencia_anterior || mesAtual);
-            const ativa = criarContaAtiva(conta, referenciaAnterior);
-            const salvo = await this.atualizar('contas_pagar', id, ativa);
-            if (!salvo || !salvo.sucesso) {
-                return { sucesso: false, reativadas, erro: `Não foi possível reativar a conta "${conta.descricao || id}": ${salvo?.erro || 'falha ao atualizar'}` };
-            }
-            reativadas++;
-        }
-
-        const historicoMaisRecente = new Map();
-        (resultadoHistorico.dados || []).filter(registro => registro?.colecao === 'contas_pagar' && registro.dados?._id)
-            .slice().sort((a, b) => {
-                const mes = String(b.mes || '').localeCompare(String(a.mes || ''));
-                return mes || String(b.data_arquivamento || '').localeCompare(String(a.data_arquivamento || ''));
-            })
-            .forEach(registro => {
-                const id = String(registro.dados._id);
-                if (!historicoMaisRecente.has(id)) historicoMaisRecente.set(id, registro);
-            });
-
-        for (const registro of historicoMaisRecente.values()) {
-            const conta = registro.dados || {};
-            const id = String(conta._id || '');
-            if (!id || idsAtivos.has(id)) continue;
-
-            const status = String(conta.status || 'pendente').trim().toLowerCase();
-            if (statusEncerrados.includes(status)) continue;
-            const saldo = Number(conta.saldo_restante ?? conta.valor) || 0;
-            if (saldo <= 0) continue;
-
-            const mesReferencia = mesReferenciaDe(conta);
-            const mesArquivo = /^\d{4}-(0[1-9]|1[0-2])$/.test(registro.mes || '') ? registro.mes : mesReferencia;
-            if (!mesArquivo || mesArquivo >= mesAtual) continue;
-            const referenciaAnterior = mesReferencia && mesReferencia < mesAtual ? mesReferencia : mesArquivo;
-            const ativa = criarContaAtiva(conta, referenciaAnterior);
-
-            const salvo = await this.salvar('contas_pagar', ativa);
-            if (!salvo || !salvo.sucesso) {
-                return { sucesso: false, reativadas, erro: `Não foi possível reativar a conta "${conta.descricao || id}": ${salvo?.erro || 'falha ao guardar'}` };
-            }
-            idsAtivos.add(id);
-            reativadas++;
-        }
-        return { sucesso: true, reativadas };
-    },
-
-    // Reativa valores a receber arquivados que ainda têm saldo para cobrar.
-    reativarValoresReceberHistoricos: async function(mesAtual) {
-        if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(mesAtual || '')) {
-            return { sucesso: false, erro: 'Mês atual inválido.' };
-        }
-        const [resultadoAtivos, resultadoHistorico] = await Promise.all([
-            this.buscar('valores_receber'),
-            this.buscar('historico_mensal')
-        ]);
-        if (!resultadoAtivos?.sucesso) return resultadoAtivos || { sucesso: false, erro: 'Não foi possível ler os valores a receber ativos.' };
-        if (!resultadoHistorico?.sucesso) return resultadoHistorico || { sucesso: false, erro: 'Não foi possível ler o histórico mensal.' };
-
-        const ativos = resultadoAtivos.dados || [];
-        const idsAtivos = new Set(ativos.map(item => String(item?._id || '')).filter(Boolean));
-        const encerrados = ['quitado', 'quitada', 'recebido', 'recebida', 'cancelado', 'cancelada', 'cancelled'];
-        const saldoAberto = item => {
-            if (item.faltaReceber !== undefined && item.faltaReceber !== null) return Number(item.faltaReceber) || 0;
-            return (Number(item.valorTotal) || 0) - (Number(item.entrada) || 0);
-        };
-        const mesDoItem = item => {
-            if (/^\d{4}-(0[1-9]|1[0-2])$/.test(item.mes_referencia || '')) return item.mes_referencia;
-            const data = parseDataSegura(item.dataAcerto || item.data || item.data_criacao);
-            return data ? `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, '0')}` : '';
-        };
-        const prepararAtivo = (item, anterior) => ({
-            ...item,
-            mes_referencia: mesAtual,
-            mes_referencia_anterior: anterior,
-            arquivada: false
-        });
-        let reativadas = 0;
-
-        for (const item of ativos) {
-            const id = String(item?._id || '');
-            if (!id || encerrados.includes(String(item.status || '').trim().toLowerCase()) || saldoAberto(item) <= 0) continue;
-            const referencia = mesDoItem(item);
-            if (!item.arquivada && (!referencia || referencia >= mesAtual)) continue;
-            const anterior = referencia && referencia < mesAtual ? referencia : (item.mes_referencia_anterior || mesAtual);
-            const salvo = await this.atualizar('valores_receber', id, prepararAtivo(item, anterior));
-            if (!salvo || !salvo.sucesso) return { sucesso: false, reativadas, erro: `Não foi possível reativar "${item.cliente || item.descricao || id}": ${salvo?.erro || 'falha ao atualizar'}` };
-            reativadas++;
-        }
-
-        const maisRecentes = new Map();
-        (resultadoHistorico.dados || []).filter(registro => registro?.colecao === 'valores_receber' && registro.dados?._id)
-            .slice().sort((a, b) => {
-                const mes = String(b.mes || '').localeCompare(String(a.mes || ''));
-                return mes || String(b.data_arquivamento || '').localeCompare(String(a.data_arquivamento || ''));
-            }).forEach(registro => {
-                const id = String(registro.dados._id);
-                if (!maisRecentes.has(id)) maisRecentes.set(id, registro);
-            });
-
-        for (const registro of maisRecentes.values()) {
-            const item = registro.dados || {};
-            const id = String(item._id || '');
-            if (!id || idsAtivos.has(id)) continue;
-            if (encerrados.includes(String(item.status || '').trim().toLowerCase()) || saldoAberto(item) <= 0) continue;
-            const mesReferencia = mesDoItem(item);
-            const mesArquivo = /^\d{4}-(0[1-9]|1[0-2])$/.test(registro.mes || '') ? registro.mes : mesReferencia;
-            if (!mesArquivo || mesArquivo >= mesAtual) continue;
-            const anterior = mesReferencia && mesReferencia < mesAtual ? mesReferencia : mesArquivo;
-            const salvo = await this.salvar('valores_receber', prepararAtivo(item, anterior));
-            if (!salvo || !salvo.sucesso) return { sucesso: false, reativadas, erro: `Não foi possível reativar "${item.cliente || item.descricao || id}": ${salvo?.erro || 'falha ao guardar'}` };
-            idsAtivos.add(id);
-            reativadas++;
-        }
-        return { sucesso: true, reativadas };
     },
 
     salvar: async function(colecao, dados) {
@@ -812,9 +651,6 @@ const api = {
                 if (!resultado || !resultado.sucesso) return { sucesso: false, erro: `Fecho cancelado: não foi possível ler ${colecao}.` };
                 colecoes[colecao] = resultado.dados || [];
                 registrosMes[colecao] = colecoes[colecao].filter(item => {
-                    if (['contas_pagar', 'valores_receber'].includes(colecao) && /^\d{4}-(0[1-9]|1[0-2])$/.test(item.mes_referencia || '')) {
-                        return item.mes_referencia === mesAno;
-                    }
                     const d = parseDataSegura(item.data || item.vencimento || item.data_criacao);
                     return d && `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` === mesAno;
                 });
@@ -829,14 +665,11 @@ const api = {
                 for (const registro of registrosMes[colecao]) {
                     if (!registro._id) return { sucesso: false, erro: `Fecho cancelado: há um registo sem identificador em ${colecao}.` };
                     const idHistorico = `hist_${mesAno}_${colecao}_${encodeURIComponent(String(registro._id))}`;
+                    if (historicoExistente.some(h => h && h._id === idHistorico)) continue;
                     const historico = { _id: idHistorico, mes: mesAno, colecao, dados: registro, data_arquivamento: new Date().toISOString() };
-                    const indiceHistorico = historicoExistente.findIndex(h => h && h._id === idHistorico);
-                    const salvo = indiceHistorico >= 0
-                        ? await this.atualizar('historico_mensal', idHistorico, historico)
-                        : await this.salvar('historico_mensal', historico);
+                    const salvo = await this.salvar('historico_mensal', historico);
                     if (!salvo || !salvo.sucesso) return { sucesso: false, erro: `Fecho interrompido: o arquivo de ${colecao} falhou; os movimentos activos foram mantidos.` };
-                    if (indiceHistorico >= 0) historicoExistente[indiceHistorico] = historico;
-                    else historicoExistente.push(historico);
+                    historicoExistente.push(historico);
                 }
             }
 

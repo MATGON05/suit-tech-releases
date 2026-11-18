@@ -216,7 +216,7 @@
         const resultadoVendas = await window.api.buscar('vendas');
         const resultadoEntradas = await window.api.buscarComHistorico('caixa_entrada');
         const resultadoSaidas = await window.api.buscarComHistorico('caixa_saida');
-        const resultadoContas = await window.api.buscarComHistorico('contas_pagar');
+        const resultadoContas = await window.api.buscar('contas_pagar');
 
         const vendas = resultadoVendas.sucesso ? resultadoVendas.dados || [] : [];
         const entradas = resultadoEntradas.sucesso ? resultadoEntradas.dados || [] : [];

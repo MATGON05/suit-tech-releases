@@ -571,7 +571,7 @@
       window.api.buscar('vendas'),
       window.api.buscarComHistorico('caixa_entrada'),
       window.api.buscarComHistorico('caixa_saida'),
-      window.api.buscarComHistorico('contas_pagar')
+      window.api.buscar('contas_pagar')
     ]);
     todosOrcamentos = vendas.sucesso ? vendas.dados || [] : [];
     todasEntradas = entradas.sucesso ? entradas.dados || [] : [];
@@ -822,8 +822,8 @@
     const anoAnterior = mesAtual === 1 ? anoAtual - 1 : anoAtual;
     const mesAnteriorStr = `${anoAnterior}-${String(mesAnterior).padStart(2,'0')}`;
 
-    const entradas = await window.api.buscarComHistorico('caixa_entrada');
-    const saidas = await window.api.buscarComHistorico('caixa_saida');
+    const entradas = await window.api.buscar('caixa_entrada');
+    const saidas = await window.api.buscar('caixa_saida');
 
     const entradasMes = (entradas.dados || []).filter(e => {
       if (!e.data) return false;

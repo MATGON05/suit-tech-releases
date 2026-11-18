@@ -168,26 +168,6 @@
   <script>
     let receberCache = [];
 
-    function mesAtualReceber() {
-      const hoje = new Date();
-      return `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`;
-    }
-
-    function recebivelTemSaldo(item) {
-      const status = String(item?.status || 'pendente').trim().toLowerCase();
-      const encerrados = ['quitado', 'quitada', 'recebido', 'recebida', 'cancelado', 'cancelada', 'cancelled'];
-      const falta = item?.faltaReceber !== undefined && item?.faltaReceber !== null
-        ? Number(item.faltaReceber) || 0
-        : (Number(item?.valorTotal) || 0) - (Number(item?.entrada) || 0);
-      return !encerrados.includes(status) && falta > 0;
-    }
-
-    function recebivelPendenteHistorico(item) {
-      if (!item?._arquivado_historico || !recebivelTemSaldo(item)) return false;
-      const mesArquivo = item._mes_arquivo || item.mes_referencia || '';
-      return !!mesArquivo && mesArquivo < mesAtualReceber();
-    }
-
     function showToast(mensagem, tipo = 'success') {
       const toast = document.getElementById('toast');
       if (!toast) return;
@@ -233,13 +213,7 @@
           renderReceber();
           return;
         }
-        const reativacao = await window.api.reativarValoresReceberHistoricos(mesAtualReceber());
-        if (!reativacao.sucesso) {
-          showToast('⚠️ Não foi possível reativar todos os valores em aberto: ' + (reativacao.erro || 'erro desconhecido'), 'warning');
-        } else if (reativacao.reativadas > 0) {
-          showToast(`✅ ${reativacao.reativadas} valor(es) antigo(s) em aberto disponível(is) para receber.`, 'success');
-        }
-        const resultado = await window.api.buscarComHistorico('valores_receber');
+        const resultado = await window.api.buscar('valores_receber');
         if (resultado.sucesso) {
           receberCache = resultado.dados || [];
           renderReceber();
@@ -285,11 +259,9 @@
           <td>${item.dataAcerto || '-'}</td>
           <td><span class="status-badge status-${item.status || 'pendente'}">${item.status || 'Pendente'}</span></td>
           <td class="actions">
-            ${item._arquivado_historico && !recebivelPendenteHistorico(item) ? `<span title="Registo arquivado no histórico mensal; só de consulta.">🔒 Arquivado</span>` : `
-              <button class="btn btn-primary" onclick="editReceber('${item._id}')" style="padding:4px 12px;font-size:12px;" title="Editar">✏️</button>
-              ${item.status !== 'quitado' ? `<button class="btn btn-success" onclick="receberPagamento('${item._id}')" style="padding:4px 12px;font-size:12px;" title="Receber">💰</button>` : ''}
-              <button class="btn btn-danger" onclick="deleteReceber('${item._id}')" style="padding:4px 12px;font-size:12px;" title="Excluir">🗑️</button>
-            `}
+            <button class="btn btn-primary" onclick="editReceber('${item._id}')" style="padding:4px 12px;font-size:12px;" title="Editar">✏️</button>
+            ${item.status !== 'quitado' ? `<button class="btn btn-success" onclick="receberPagamento('${item._id}')" style="padding:4px 12px;font-size:12px;" title="Receber">💰</button>` : ''}
+            <button class="btn btn-danger" onclick="deleteReceber('${item._id}')" style="padding:4px 12px;font-size:12px;" title="Excluir">🗑️</button>
           </td>
         </tr>
       `).join('');
@@ -317,7 +289,7 @@
     let recebendoPagamento = false;
     async function receberPagamento(id) {
       if (recebendoPagamento) return;
-      let item = receberCache.find(x => x._id === id);
+      const item = receberCache.find(x => x._id === id);
       if (!item) { showToast('❌ Registro não encontrado', 'error'); return; }
       const valorParcela = Number(item.valorParcela) || 0;
       const faltaAtual = Number(item.faltaReceber) || 0;
@@ -328,25 +300,20 @@
 
       recebendoPagamento = true;
       try {
-        item = await garantirRecebivelAtivo(id);
-        if (!item) return;
-        const saldoAtivo = Number(item.faltaReceber) || 0;
-        const valorFinal = Math.min(Number(item.valorParcela) || 0, saldoAtivo);
-        if (saldoAtivo <= 0 || valorFinal <= 0) { showToast('❌ Este valor já está quitado!', 'warning'); return; }
-        const novaFalta = saldoAtivo - valorFinal;
+        const novaFalta = faltaAtual - valorRecebido;
         const novoStatus = novaFalta <= 0 ? 'quitado' : 'parcial';
         const pagamentoId = `rec_${id}_${Date.now()}`;
         const body = { ...item, faltaReceber: Math.max(0, novaFalta), status: novoStatus, dataUltimoPagamento: dataLocalHojeISO(), ultimo_pagamento_id: pagamentoId };
         const resultado = await window.api.atualizar('valores_receber', id, body);
         if (resultado.sucesso) {
-          const resultadoEntrada = await window.api.salvar('caixa_entrada', { _id: pagamentoId, valor_receber_id: id, data: dataLocalHojeISO(), tipo: 'recebimento', descricao: `💰 RECEBIMENTO: ${item.cliente || 'Cliente'} - ${item.descricao || ''}`, venda: valorFinal, custo: 0, lucro: valorFinal, valor_liquido: valorFinal, conta_id: item.conta_id || '', forma_pagamento: item.formaPagamento || item.forma_pagamento || '', status: 'confirmado' });
+          const resultadoEntrada = await window.api.salvar('caixa_entrada', { _id: pagamentoId, valor_receber_id: id, data: dataLocalHojeISO(), tipo: 'recebimento', descricao: `💰 RECEBIMENTO: ${item.cliente || 'Cliente'} - ${item.descricao || ''}`, venda: valorRecebido, custo: 0, lucro: valorRecebido, valor_liquido: valorRecebido, conta_id: item.conta_id || '', forma_pagamento: item.formaPagamento || item.forma_pagamento || '', status: 'confirmado' });
           if (!resultadoEntrada.sucesso) {
             await window.api.atualizar('valores_receber', id, item);
             showToast('❌ O recebimento não foi concluído porque o lançamento no Caixa Entrada falhou.', 'error');
             await loadReceber();
             return;
           }
-          showToast(`✅ Pagamento de R$ ${valorFinal.toFixed(2).replace('.', ',')} recebido de ${item.cliente || 'cliente'}!`, 'success');
+          showToast(`✅ Pagamento de R$ ${valorRecebido.toFixed(2).replace('.', ',')} recebido de ${item.cliente || 'cliente'}!`, 'success');
           await loadReceber();
         } else {
           showToast('❌ Erro: ' + resultado.erro, 'error');
@@ -357,27 +324,6 @@
       } finally {
         recebendoPagamento = false;
       }
-    }
-
-    async function garantirRecebivelAtivo(id) {
-      const encontrada = receberCache.find(item => String(item._id) === String(id));
-      if (!encontrada) { showToast('❌ Registro não encontrado', 'error'); return null; }
-      if (!encontrada._arquivado_historico && encontrada.arquivada !== true) return encontrada;
-      if (!recebivelTemSaldo(encontrada)) {
-        showToast('ℹ️ Apenas valores com saldo em aberto podem ser reativados.', 'warning');
-        return null;
-      }
-      const reativacao = await window.api.reativarValoresReceberHistoricos(mesAtualReceber());
-      if (!reativacao.sucesso) showToast('⚠️ ' + (reativacao.erro || 'Não foi possível reativar o valor.'), 'warning');
-      const resultado = await window.api.buscar('valores_receber');
-      const ativo = (resultado?.dados || []).find(item => String(item._id) === String(id));
-      if (!ativo) {
-        showToast('❌ O valor continua apenas no histórico. Verifique a ligação ao Supabase e tente atualizar.', 'error');
-        return null;
-      }
-      receberCache = receberCache.filter(item => String(item._id) !== String(id));
-      receberCache.push(ativo);
-      return ativo;
     }
 
     function openReceberModal(item = null) {
@@ -503,7 +449,7 @@
 
     async function editReceber(id) {
       try {
-        const item = await garantirRecebivelAtivo(id);
+        const item = receberCache.find(x => x._id === id);
         if (item) { openReceberModal(item); } else { showToast('❌ Registro não encontrado', 'error'); }
       } catch (erro) {
         console.error('Erro:', erro);
@@ -514,8 +460,6 @@
     async function deleteReceber(id) {
       if (!confirm('Excluir este registro?')) return;
       try {
-        const item = await garantirRecebivelAtivo(id);
-        if (!item) return;
         if (typeof window.api === 'undefined' || !window.api.deletar) {
           showToast('❌ Banco de dados não disponível', 'error');
           return;

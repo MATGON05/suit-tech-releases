@@ -208,23 +208,9 @@
       return !Number.isNaN(vencimento.getTime()) && vencimento < inicioMesAtual();
     }
 
-    function contaTemSaldoEmAberto(conta) {
-      const status = String(conta?.status || 'pendente').trim().toLowerCase();
-      const encerrada = ['paga', 'pago', 'quitada', 'quitado', 'paid', 'cancelada', 'cancelado', 'cancelled'];
-      return !encerrada.includes(status) && (Number(conta?.saldo_restante ?? conta?.valor) || 0) > 0;
-    }
-
-    function contaPendenteHistorica(conta) {
-      if (!conta?._arquivado_historico || !contaTemSaldoEmAberto(conta)) return false;
-      const mesArquivo = conta._mes_arquivo || conta.mes_referencia || chaveMes(`${conta.vencimento}T00:00:00`);
-      return !!mesArquivo && mesArquivo < chaveMes(dataLocalHoje());
-    }
-
     function contaAtivaNoMesAtual(conta) {
-      // Contas arquivadas pagas continuam consultáveis no mês original.
-      // Pendências antigas são reativadas com mes_referencia do mês atual.
-      if ((contaPendenteHistorica(conta) || (conta.arquivada === true && contaTemSaldoEmAberto(conta))) &&
-          mesContasExibicao === chaveMes(dataLocalHoje())) return true;
+      // Contas arquivadas continuam consultáveis ao navegar para o mês
+      // original, mas não entram na competência atual.
       if (conta.arquivada === true) {
         return conta.mes_referencia === mesContasExibicao;
       }
@@ -265,7 +251,7 @@
           continue;
         }
 
-        if (['paga', 'pago', 'quitada', 'quitado'].includes(String(conta.status || '').toLowerCase())) {
+        if (conta.status === 'paga' || conta.arquivada === true) {
           const arquivada = {
             ...conta,
             arquivada: true,
@@ -318,19 +304,9 @@
           renderContas();
           return;
         }
-        const mesAtual = chaveMes(dataLocalHoje());
-        const reativacao = await window.api.reativarContasPendentesHistoricas(mesAtual);
-        if (!reativacao.sucesso) {
-          showToast('⚠️ Não foi possível reativar todas as contas em aberto: ' + (reativacao.erro || 'erro desconhecido'), 'warning');
-        } else if (reativacao.reativadas > 0) {
-          showToast(`✅ ${reativacao.reativadas} conta(s) em aberto de meses anteriores disponível(is) para pagar ou abater.`, 'success');
-        }
-        const resultado = await window.api.buscarComHistorico('contas_pagar');
+        const resultado = await window.api.buscar('contas_pagar');
         if (resultado.sucesso) {
-          const registros = resultado.dados || [];
-          const ativos = registros.filter(conta => !conta._arquivado_historico);
-          const historico = registros.filter(conta => conta._arquivado_historico);
-          contasCache = [...await processarViradaMensal(ativos), ...historico];
+          contasCache = await processarViradaMensal(resultado.dados || []);
           atualizarRotuloMesContas();
           renderContas();
           atualizarResumoContas();
@@ -375,13 +351,11 @@
           <td>${c.tipo === 'pessoal' ? '👤 Pessoal' : '🏢 Empresarial'}</td>
           <td>${c.conta_nome || '-'}</td>
           <td class="actions">
-            ${c._arquivado_historico && !contaPendenteHistorica(c) ? `<span title="Registo arquivado no histórico mensal; só de consulta.">🔒 Arquivado</span>` : `
             <button class="btn btn-primary" onclick="editConta('${c._id}')" style="padding:4px 12px;font-size:12px;" title="Editar">✏️</button>
             ${c.status !== 'paga' ? `<button class="btn btn-warning" onclick="duplicarContaProximoMes('${c._id}')" style="padding:4px 12px;font-size:12px;" title="Repetir no próximo mês">🔁 Repetir</button>` : ''}
             ${c.status !== 'paga' ? `<button class="btn btn-purple" onclick="openAbatimentoModal('${c._id}')" style="padding:4px 12px;font-size:12px;" title="Registrar pagamento parcial">💸 Abater</button>` : ''}
             ${c.status !== 'paga' ? `<button class="btn btn-success" onclick="pagarConta('${c._id}')" style="padding:4px 12px;font-size:12px;" title="Pagar">✅ Pagar</button>` : ''}
             <button class="btn btn-danger" onclick="deleteConta('${c._id}')" style="padding:4px 12px;font-size:12px;" title="Excluir">🗑️</button>
-            `}
           </td>
         </tr>
       `).join('');
@@ -403,34 +377,11 @@
       document.getElementById('conta-vencida').textContent = `R$ ${vencida.toFixed(2).replace('.', ',')}`;
     }
 
-    async function garantirContaAtiva(id) {
-      const encontrada = contasCache.find(c => c._id === id);
-      if (!encontrada) { showToast('❌ Conta não encontrada', 'error'); return null; }
-      if (!encontrada._arquivado_historico && encontrada.arquivada !== true) return encontrada;
-      if (!contaTemSaldoEmAberto(encontrada)) {
-        showToast('ℹ️ Apenas contas com saldo em aberto podem ser reativadas.', 'warning');
-        return null;
-      }
-
-      const mesAtual = chaveMes(dataLocalHoje());
-      const reativacao = await window.api.reativarContasPendentesHistoricas(mesAtual);
-      if (!reativacao.sucesso) showToast('⚠️ ' + (reativacao.erro || 'Não foi possível reativar a conta.'), 'warning');
-      const resultado = await window.api.buscar('contas_pagar');
-      const ativa = (resultado?.dados || []).find(c => String(c._id) === String(id));
-      if (!ativa) {
-        showToast('❌ A conta ainda está apenas no arquivo. Verifique a ligação com o Supabase e tente atualizar.', 'error');
-        return null;
-      }
-      contasCache = contasCache.filter(c => String(c._id) !== String(id));
-      contasCache.push(ativa);
-      return ativa;
-    }
-
     async function pagarConta(id) {
       if (!confirm('Confirmar pagamento desta conta? Ela será adicionada ao Caixa Saída.')) return;
 
       try {
-        const conta = await garantirContaAtiva(id);
+        const conta = contasCache.find(c => c._id === id);
         if (!conta) { showToast('❌ Conta não encontrada', 'error'); return; }
 
         const historico = Array.isArray(conta.pagamentos) ? [...conta.pagamentos] : [];
@@ -492,7 +443,7 @@
     }
 
     async function duplicarContaProximoMes(id) {
-      const conta = await garantirContaAtiva(id);
+      const conta = contasCache.find(c => c._id === id);
       if (!conta) return showToast('❌ Conta não encontrada', 'error');
       const vencimento = proximoMes(conta.vencimento);
       const resultadoBusca = await window.api.buscar('contas_pagar');
@@ -522,8 +473,8 @@
       await loadContas();
     }
 
-    async function openAbatimentoModal(id) {
-      const conta = await garantirContaAtiva(id);
+    function openAbatimentoModal(id) {
+      const conta = contasCache.find(c => c._id === id);
       if (!conta) return showToast('❌ Conta não encontrada', 'error');
       const saldo = Number(conta.saldo_restante ?? conta.valor) || 0;
       if (saldo <= 0 || conta.status === 'paga') return showToast('ℹ️ Esta conta já está quitada.', 'warning');
@@ -669,7 +620,7 @@
 
     async function editConta(id) {
       try {
-        const conta = await garantirContaAtiva(id);
+        const conta = contasCache.find(c => c._id === id);
         if (conta) { openContaModal(conta); } else { showToast('❌ Conta não encontrada', 'error'); }
       } catch (erro) {
         console.error('Erro:', erro);
@@ -680,8 +631,6 @@
     async function deleteConta(id) {
       if (!confirm('Excluir esta conta?')) return;
       try {
-        const conta = await garantirContaAtiva(id);
-        if (!conta) return;
         if (typeof window.api === 'undefined' || !window.api.deletar) {
           showToast('❌ Banco de dados não disponível', 'error');
           return;

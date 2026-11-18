@@ -133,11 +133,9 @@
           <td>${item.tipo_saida === 'pessoal' ? '👤 Pessoal' : '🏢 Empresarial'}</td>
           <td>${item.rateio ? item.rateio : '-'}</td>
           <td class="actions">
-            ${item._arquivado_historico ? `<span title="Registo arquivado no histórico mensal; só de consulta.">🔒 Arquivado</span>` : `
-              <button class="btn btn-primary" onclick="editCashOut('${item._id}')">✏️</button>
-              <button class="btn btn-warning" onclick="repetirSaida('${item._id}')">🔄</button>
-              <button class="btn btn-danger" onclick="deleteCashOut('${item._id}')">🗑️</button>
-            `}
+            <button class="btn btn-primary" onclick="editCashOut('${item._id}')">✏️</button>
+            <button class="btn btn-warning" onclick="repetirSaida('${item._id}')">🔄</button>
+            <button class="btn btn-danger" onclick="deleteCashOut('${item._id}')">🗑️</button>
           </td>
         </tr>
       `).join('');
